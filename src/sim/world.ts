@@ -107,6 +107,7 @@ export class World {
   failReason?: { reason: 'flood' | 'dusk'; node?: string };
   runs = 0;
   bonus = 0;
+  overflowTime = OVERFLOW_TIME;
   private seq = 1;
   private acc = 0;
 
@@ -397,8 +398,8 @@ export class World {
     }
     n.outBuf.out = n.buffer;
     const before = n.overflow;
-    if (n.buffer.length >= SRC_CAP) n.overflow += dt / OVERFLOW_TIME;
-    else n.overflow = Math.max(0, n.overflow - dt / (OVERFLOW_TIME * 2));
+    if (n.buffer.length >= SRC_CAP) n.overflow += dt / this.overflowTime;
+    else n.overflow = Math.max(0, n.overflow - dt / (this.overflowTime * 2));
     if (before < 0.5 && n.overflow >= 0.5) this.events.push({ type: 'overflowWarn', node: n.id, t: this.t });
     if (n.overflow >= 1) {
       this.state = 'failed';
