@@ -49,12 +49,12 @@ export class Fx {
     this.sparkMesh.setColorAt(0, new THREE.Color('#fff'));
   }
 
-  burst(comp: Comp, at: THREE.Vector3, n = 14, power = 1): void {
+  burst(comp: Comp, at: THREE.Vector3, n = 14, power = 1, size = 1.6): void {
     const us = particleUnits(comp, n);
     us.forEach((u, i) => {
       const a = Math.random() * Math.PI * 2;
       const sp = (1.2 + Math.random() * 1.8) * power;
-      this.debris.push({ u, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * sp, 2.2 + Math.random() * 2.5 * power, Math.sin(a) * sp), life: 0, max: 1.4 + Math.random() * 0.6, seed: i * 7 + Math.random() * 100, size: 1.6 });
+      this.debris.push({ u, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * sp, 2.2 + Math.random() * 2.5 * power, Math.sin(a) * sp), life: 0, max: 1.4 + Math.random() * 0.6, seed: i * 7 + Math.random() * 100, size });
     });
   }
 

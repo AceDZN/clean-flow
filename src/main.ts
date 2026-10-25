@@ -5,8 +5,9 @@ import '@fontsource/rubik/hebrew-800.css';
 import '@fontsource/rubik/latin-400.css';
 import '@fontsource/rubik/latin-700.css';
 import './style.css';
-import { Game } from './game/Game';
+import './v2/v2.css';
+import { PuzzleGame } from './v2/PuzzleGame';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
-const game = new Game(canvas);
+const game = new PuzzleGame(canvas);
 void game.boot();

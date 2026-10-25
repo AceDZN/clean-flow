@@ -76,12 +76,22 @@ export function unitModel(u: UnitId, dissolved: boolean): THREE.Group {
       }
       return lattice('Na', 'Cl', 3);
     }
-    case 'sand': return grain('#d9a55b', 0.85);
+    case 'sand': return grain('#e0ad68', 0.62);
     case 'gravel': return grain('#c8c0b0', 1.2, 1);
     case 'iron': {
+      // an iron filing grain: a dark metallic spiky ball (same shape as in the pipes), atoms on its surface
       const g = new THREE.Group();
-      for (let i = 0; i < 9; i++) g.add(atom('Fe', V((i % 3) * 0.3 - 0.3 + (i > 5 ? 0.15 : 0), Math.floor(i / 3) * 0.3 - 0.3, (i % 2) * 0.15), 1.1));
-      g.scale.set(1.6, 0.9, 0.9);
+      const mat = new THREE.MeshStandardMaterial({ color: '#4d535c', metalness: 0.75, roughness: 0.35 });
+      g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), mat));
+      const spike = new THREE.ConeGeometry(0.09, 0.32, 6);
+      const dirs = new THREE.IcosahedronGeometry(1, 0).getAttribute('position');
+      for (let i = 0; i < dirs.count; i += 3) {
+        const d = new THREE.Vector3().fromBufferAttribute(dirs, i).normalize();
+        const m = new THREE.Mesh(spike, mat);
+        m.position.copy(d).multiplyScalar(0.48);
+        m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+        g.add(m);
+      }
       return g;
     }
     case 'ironSulfide': return lattice('Fe', 'S', 3, 0.36, 0.95);
@@ -175,14 +185,24 @@ export class Lens {
   constructor() {
     this.rt = new THREE.WebGLRenderTarget(640, 640, { samples: 4 });
     this.camera.position.set(0, 0, 8.2);
-    this.scene.background = new THREE.Color('#cfe9ec');
-    this.scene.add(new THREE.HemisphereLight('#ffffff', '#8aa', 2.0));
+    // a soft, bright "inside the glass" backdrop
+    const bg = document.createElement('canvas');
+    bg.width = bg.height = 256;
+    const bctx = bg.getContext('2d')!;
+    const grad = bctx.createRadialGradient(128, 110, 10, 128, 128, 180);
+    grad.addColorStop(0, '#f4fbfb');
+    grad.addColorStop(0.6, '#d6eef0');
+    grad.addColorStop(1, '#a9d3d8');
+    bctx.fillStyle = grad;
+    bctx.fillRect(0, 0, 256, 256);
+    const bgTex = new THREE.CanvasTexture(bg);
+    bgTex.colorSpace = THREE.SRGBColorSpace;
+    this.scene.background = bgTex;
+    this.scene.add(new THREE.HemisphereLight('#ffffff', '#b8c8cc', 2.2));
     const d = new THREE.DirectionalLight('#fff', 2.2);
     d.position.set(3, 5, 6);
     this.scene.add(d);
-    // glass-tube walls around the view
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 30, 32, 1, true).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#9ed6dc', side: THREE.BackSide, roughness: 0.3 }));
-    this.scene.add(tube, this.content);
+    this.scene.add(this.content);
     this.quadMat = new THREE.ShaderMaterial({
       uniforms: { map: { value: this.rt.texture }, time: { value: 0 } },
       transparent: true,
@@ -195,7 +215,9 @@ export class Lens {
           col.rgb *= 0.78 + 0.22 * vig;
           float hl = smoothstep(0.18, 0.0, length(c - vec2(-0.17, 0.2))) * 0.35;
           col.rgb += hl;
-          gl_FragColor = vec4(col.rgb, smoothstep(0.5, 0.49, r)); }`,
+          gl_FragColor = vec4(col.rgb, smoothstep(0.5, 0.49, r));
+          #include <colorspace_fragment>
+        }`,
     });
     this.overlayScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.quadMat));
   }
@@ -231,7 +253,7 @@ export class Lens {
         } else if (s.phase === 'solid' && !dissolvedNow) {
           const idx = us.filter((x) => sub(x).phase === 'solid').indexOf(u);
           const cx = (idx % 2 === 0 ? -1 : 1) * (1.4 + (idx >> 1) * 0.9);
-          home.set(cx + (Math.random() - 0.5) * 1.8, -1.6 + (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 2);
+          home.set(cx + (Math.random() - 0.5) * 1.8, -0.7 + (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 2);
         } else {
           home.set((Math.random() - 0.5) * 7, (oils.length ? -1.2 : 0) + (Math.random() - 0.5) * (oils.length ? 2.2 : 5.5), (Math.random() - 0.5) * 3);
         }
