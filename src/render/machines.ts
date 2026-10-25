@@ -51,7 +51,7 @@ function makeView(labelY: number): NodeView {
   const inlet = new THREE.Object3D();
   inlet.position.set(0, 0.7, 0);
   group.add(inlet);
-  const hit = mesh(new THREE.CylinderGeometry(0.75, 0.75, 1.5, 8), HIT_MAT, 0, 0.75, 0);
+  const hit = mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.5, 8), HIT_MAT, 0, 0.75, 0);
   group.add(hit);
   return { group, body, ports: {}, portHits: {}, inlet, hit, anim: () => {}, labelY };
 }

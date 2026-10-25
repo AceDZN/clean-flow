@@ -225,6 +225,85 @@ async function campaign(page) {
   return results;
 }
 
+/** Real captures matching each mockup in docs/visual-targets (same viewport 1600x900). */
+async function reviewCaptures() {
+  const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
+  let page;
+  let ids;
+  if (!only || only === '1') {
+  // 01: first 30 seconds, week 1 magnet flowing
+  page = await open();
+  await page.click('#start');
+  await page.click('[data-go]');
+  await step(page, 2500);
+  await page.click('#coach [data-skip]');
+  ids = {};
+  await buildPlan(page, SOLUTIONS['w1-iron'], ids, false);
+  await page.click('#playbtn');
+  await step(page, 9000);
+  await shot(page, 'actual-01-first-30s');
+  await page.close();
+  }
+  if (!only || only === '2') {
+  // 02: week 4 chain mid-play with the lens on the filtrate pipe (salt water)
+  page = await open();
+  await unlockAll(page);
+  await page.click('.weekbtn[data-l="3"]');
+  await page.click('[data-go]');
+  await step(page, 2500);
+  ids = {};
+  await buildPlan(page, SOLUTIONS['w4-classic'], ids, false);
+  await page.click('#playbtn');
+  await step(page, 12000);
+  const st = await state(page);
+  const filt = st.pipes.find((p) => p.port === 'filtrate');
+  const pp = await page.evaluate((id) => window.cf.screenOfPipe(id), filt.id);
+  await page.click('#playbtn'); // pause to inspect
+  console.log('pick', JSON.stringify(await page.evaluate(([x, y]) => window.cf.pickAt(x, y), [pp.x, pp.y])), JSON.stringify(pp));
+  await page.mouse.click(pp.x, pp.y);
+  await step(page, 900);
+  await shot(page, 'actual-02-core-mid-play');
+  await page.screenshot({ path: path.join(outDir, 'actual-04-hud.png'), clip: { x: 0, y: 0, width: 1600, height: 900 } });
+  await page.close();
+  }
+  if (only && only !== '3') return;
+  // 03: failure — evaporating the marsh before filtering: sandy salt at the bakery, near dusk
+  page = await open();
+  await unlockAll(page);
+  await page.click('.weekbtn[data-l="1"]');
+  await page.click('[data-go]');
+  await step(page, 2500);
+  ids = {};
+  let deferred = await buildPlan(page, { stations: [{ name: 'P', type: 'pan', q: 2, r: 0 }, { name: 'S', type: 'still', q: -1, r: -3 }], pipes: [['marsh', 'out', 'P'], ['P', 'crystals', 'bakery'], ['saltpond', 'out', 'S'], ['S', 'distillate', 'clinic'], ['S', 'remainder', 'waste']] }, ids, false);
+  await page.click('#playbtn');
+  for (let t = 0; t < 100000; t += 250) {
+    await step(page, 250);
+    const s = await state(page);
+    if (s.state === 'paused' && s.pauseReason === 'event') {
+      await page.click('#modal [data-x]');
+      deferred = await buildPlan(page, { pipes: deferred }, ids, true);
+      await page.click('#playbtn');
+    }
+    const b = s.nodes.find((n) => n.id === 'bakery');
+    if (s.time > 84 && b && b.rejected > 0 && s.state === 'running') {
+      const before = b.rejected;
+      for (let k = 0; k < 20; k++) {
+        await step(page, 100);
+        const s2 = await state(page);
+        if (s2.nodes.find((n) => n.id === 'bakery').rejected > before) break;
+      }
+      await step(page, 300);
+      break;
+    }
+    if (s.state === 'failed') break;
+  }
+  await shot(page, 'actual-03-failure');
+  await page.close();
+}
+
+if (scenario === 'review') {
+  await reviewCaptures();
+}
 if (scenario === 'campaign' || scenario === 'all') {
   const p = await open();
   await campaign(p);

@@ -764,6 +764,17 @@ export class Game {
     if (portHit) return { kind: 'port', id: portHit.object.userData.nodeId, port: portHit.object.userData.port };
     // several node volumes can overlap in perspective: take the one whose centre is nearest the pointer
     const nodeHits = hits.filter((h) => h.object.userData.nodeId && !h.object.userData.port);
+    const pipeHit = hits.find((h) => h.object.userData.pipeId);
+    // the hit volumes are generous; a pipe wins unless the machine's real geometry is in front of it
+    if (pipeHit) {
+      let solidFront = false;
+      for (const h of nodeHits) {
+        const v = this.nodeViews.get(h.object.userData.nodeId)!;
+        const real = this.raycaster.intersectObject(v.group, true).find((x) => x.object !== v.hit && !x.object.userData.port && (x.object as THREE.Mesh).visible !== false);
+        if (real && real.distance < pipeHit.distance) solidFront = true;
+      }
+      if (!solidFront) return { kind: 'pipe', id: pipeHit.object.userData.pipeId };
+    }
     if (nodeHits.length) {
       let best = nodeHits[0].object.userData.nodeId as string;
       let bd = Infinity;
@@ -1638,7 +1649,7 @@ export class Game {
     for (const t of this.world.tiles.values()) {
       if (t.water || [...this.world.nodes.values()].some((n) => Math.abs(n.q - t.q) + Math.abs(n.r - t.r) + Math.abs(n.q + n.r - t.q - t.r) <= 4)) continue;
       const { x, z } = hexToWorld(t.q, t.r);
-      const score = z * 1.0 + x * 0.6 - Math.abs(Math.hypot(x, z) - BOARD_RADIUS * 1.3) * 0.8;
+      const score = x * 1.0 + z * 0.45 - (z > 7 ? 50 : 0) - Math.abs(Math.hypot(x, z) - BOARD_RADIUS * 1.3) * 0.5;
       if (score > bestScore && Math.hypot(x, z) < BOARD_RADIUS * 1.55) {
         bestScore = score;
         best = t;
