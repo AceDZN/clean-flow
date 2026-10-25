@@ -92,7 +92,7 @@ export class ParticleField {
   }
 
   /** Draw a packet's particles at a point along a curve. */
-  packetOnCurve(curve: THREE.CatmullRomCurve3, u0: number, comp: Comp, packetId: number, t: number, spread = 0.14, trailLen = 2.4): void {
+  packetOnCurve(curve: THREE.CatmullRomCurve3, u0: number, comp: Comp, packetId: number, t: number, spread = 0.17, trailLen = 2.4): void {
     const list = particleUnits(comp);
     const tmp = new THREE.Vector3();
     const tan = new THREE.Vector3();
@@ -119,7 +119,7 @@ export function glassPipeMaterial(): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({ color: '#dcf7ff', metalness: 0.1, roughness: 0.02, transparent: true, opacity: 0.3, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1, envMapIntensity: 2.2, emissive: '#7fe9ff', emissiveIntensity: 0.0, side: THREE.DoubleSide });
 }
 
-export function buildPipeMesh(curve: THREE.CatmullRomCurve3, mat: THREE.Material, radius = 0.21): THREE.Mesh {
+export function buildPipeMesh(curve: THREE.CatmullRomCurve3, mat: THREE.Material, radius = 0.25): THREE.Mesh {
   const geo = new THREE.TubeGeometry(curve, Math.max(24, Math.floor(curve.getLength() * 10)), radius, 12, false);
   const m = new THREE.Mesh(geo, mat);
   m.renderOrder = 2;

@@ -101,6 +101,7 @@ bdi.f, .ltr { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabul
 .gauge.warn { border-color: var(--warn); animation: shake 0.4s infinite; }
 .gauge.crit { border-color: var(--bad); background: rgba(120,20,10,0.85); animation: shake 0.25s infinite; }
 @keyframes shake { 0%,100% { transform: translate(-50%,-100%) translateX(0); } 50% { transform: translate(-50%,-100%) translateX(2px); } }
+.gauge .dial { width: 54px; height: 33px; }
 .gauge .bar { width: 46px; height: 8px; border-radius: 5px; background: rgba(255,255,255,0.15); overflow: hidden; direction: ltr; }
 .gauge .bar > i { display: block; height: 100%; background: var(--teal-300); }
 .gauge.warn .bar > i { background: var(--warn); }

@@ -197,7 +197,7 @@ export interface Environment {
 }
 
 const SKY_DAY = new THREE.Color('#bfe3e6');
-const SKY_DUSK = new THREE.Color('#f29a6b');
+const SKY_DUSK = new THREE.Color('#d98ca0');
 const SKY_NIGHT = new THREE.Color('#40375e');
 
 export function buildEnvironment(scene: THREE.Scene): Environment {
@@ -221,7 +221,7 @@ export function buildEnvironment(scene: THREE.Scene): Environment {
   const bg = scene.background as THREE.Color;
   const fog = scene.fog as THREE.Fog;
   const sunDay = new THREE.Color('#fff1d6');
-  const sunDusk = new THREE.Color('#ff9a57');
+  const sunDusk = new THREE.Color('#ff8a5c');
   return {
     sun,
     hemi,
@@ -230,7 +230,7 @@ export function buildEnvironment(scene: THREE.Scene): Environment {
       const a = THREE.MathUtils.lerp(-0.9, 1.15, f); // sun azimuth sweep
       const elev = Math.sin(THREE.MathUtils.lerp(0.35, 2.75, f)) * 0.9 + 0.12;
       sun.position.set(Math.cos(a) * 22, 6 + elev * 18, Math.sin(a) * 10 + 8);
-      const dusk = THREE.MathUtils.smoothstep(f, 0.62, 1.0);
+      const dusk = THREE.MathUtils.smoothstep(f, 0.55, 0.95);
       sun.color.copy(sunDay).lerp(sunDusk, dusk);
       sun.intensity = 3.0 - dusk * 1.2;
       hemi.intensity = 1.05 - dusk * 0.35;

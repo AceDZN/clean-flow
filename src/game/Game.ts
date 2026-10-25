@@ -125,7 +125,7 @@ export class Game {
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.28;
     this.scene.add(this.levelRoot);
-    this.field = new ParticleField(this.scene, 2.9);
+    this.field = new ParticleField(this.scene, 3.3);
     this.fx = new Fx(this.scene);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
@@ -438,7 +438,7 @@ export class Game {
       root.append(lab.meter);
     }
     if (n.kind === 'source') {
-      lab.gauge = el('div', { class: 'gauge hidden' }, `<span>⚠</span><div class="bar"><i></i></div><span class="txt">עומס</span>`);
+      lab.gauge = el('div', { class: 'gauge hidden' }, `<svg class="dial" viewBox="0 0 60 36"><path d="M6 32 A24 24 0 0 1 54 32" fill="#fff6dc" stroke="#7a5128" stroke-width="3"/><path d="M38 12 A24 24 0 0 1 54 32" fill="none" stroke="#e2552d" stroke-width="5"/><line class="needle" x1="30" y1="32" x2="30" y2="10" stroke="#2b1b0e" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="32" r="3.5" fill="#2b1b0e"/></svg><span class="txt">עומס בצנרת</span>`);
       root.append(lab.gauge);
     }
     if (n.kind === 'waste') sign.textContent = '🗑 ' + n.he;
@@ -498,7 +498,8 @@ export class Game {
       if (lab.gauge) {
         const busy = n.buffer.length >= 3 || n.overflow > 0.02;
         lab.gauge.classList.toggle('hidden', !busy || w.state === 'planning');
-        (lab.gauge.querySelector('.bar > i') as HTMLElement).style.width = `${Math.min(100, n.overflow * 100 + (n.buffer.length / 5) * 20)}%`;
+        const load = Math.min(1, n.overflow * 0.8 + (n.buffer.length / 5) * 0.2);
+        lab.gauge.querySelector('.needle')!.setAttribute('transform', `rotate(${-80 + load * 160} 30 32)`);
         lab.gauge.classList.toggle('warn', n.overflow > 0.05 && n.overflow < 0.5);
         lab.gauge.classList.toggle('crit', n.overflow >= 0.5);
         lab.gauge.querySelector('.txt')!.textContent = n.overflow >= 0.5 ? 'עומד להציף!' : 'עומס';

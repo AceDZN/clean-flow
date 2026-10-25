@@ -263,7 +263,7 @@ async function reviewCaptures() {
   await page.mouse.click(pp.x, pp.y);
   await step(page, 900);
   await shot(page, 'actual-02-core-mid-play');
-  await page.screenshot({ path: path.join(outDir, 'actual-04-hud.png'), clip: { x: 0, y: 0, width: 1600, height: 900 } });
+  await page.screenshot({ path: path.join(outDir, 'actual-04-hud.png'), clip: { x: 0, y: 60, width: 1600, height: 840 } });
   await page.close();
   }
   if (only && only !== '3') return;
