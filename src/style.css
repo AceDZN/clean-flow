@@ -206,6 +206,16 @@ bdi.f, .ltr { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabul
   #lens .legend { grid-template-columns: 1fr; }
   #inspector { top: auto; bottom: 120px; right: 8px; width: min(260px, 70vw); }
   #side-buttons { bottom: 118px; right: 8px; }
+  .meter { padding: 2px 6px 2px 3px; font-size: 10px; border-width: 2px; gap: 0 4px; }
+  .meter .ico { width: 22px; height: 22px; }
+  .meter .ico svg { width: 16px; height: 16px; }
+  .meter .bar { width: 54px; height: 8px; }
+  .meter .num { font-size: 9px; }
+  .wl-sign { font-size: 11px; padding: 1px 6px; }
+  .port-tag { font-size: 9px; padding: 0 4px; }
+  .bubble { font-size: 14px; padding: 5px 10px; }
+  .gauge .dial { width: 38px; height: 23px; }
+  #hintbtn span { display: none; }
   #hud-top-right { top: 62px; right: 8px; }
   #status-banner { top: 118px; font-size: 13px; }
   #coach { top: 118px; font-size: 14px; max-width: calc(100vw - 16px); }
