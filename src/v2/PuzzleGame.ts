@@ -18,6 +18,7 @@ import { CLASS_ICON, ICONS, distributionHe, el, f, legendHtml } from '../ui/hud'
 import { audio } from '../game/audio';
 import { NOTE_HE, workedExplanation } from '../game/explain';
 import { logEvent, sessionLog } from '../game/log';
+import { parseLevelParam, postToHost } from '../host';
 import { BX, BZ, PIPE_R, PIPE_Y, buildIsland, palms, pipeRoute, toWorld } from './board';
 import { MapScene } from './map';
 
@@ -148,6 +149,8 @@ export class PuzzleGame {
   scanSource: string | null = null;
   visualT = 0;
   testMode = false;
+  /** when the current attempt started (performance.now), for the host's level-complete */
+  hostStartedAt: number | null = null;
   reduced = false;
   bubbles: Bubble[] = [];
   icons: Partial<Record<StationType, string>> = {};
@@ -207,6 +210,16 @@ export class PuzzleGame {
     this.makeIcons();
     this.addMascot();
     this.showMap();
+    postToHost({ type: 'ready' });
+    // ?level=N (1-based) opens that level straight away, even if the save has it locked
+    const deep = parseLevelParam(location.search, PUZZLES.length);
+    if (deep !== null) this.startLevel(deep);
+  }
+
+  /** tell the workbook player an attempt at the current level has begun */
+  private hostLevelStart(): void {
+    this.hostStartedAt = performance.now();
+    postToHost({ type: 'level-start', level: this.levelIdx + 1 });
   }
 
   // ======================= screens =======================
@@ -266,6 +279,7 @@ export class PuzzleGame {
     this.updateGoal();
     logEvent({ level: this.pz.id, action: 'run', values: { start: true }, hintsUsed: 0, run: 0 });
     if (this.pz.tutorial) window.setTimeout(() => this.tutorialHand(), 900);
+    this.hostLevelStart();
   }
 
   // ======================= level build =======================
@@ -1250,6 +1264,10 @@ export class PuzzleGame {
     audio.play('win');
     this.mascotPlay('cheer');
     for (const n of this.pz.nodes) if (n.kind === 'customer') this.fx.confetti(toWorld(n.x, n.z, 2.4), 40);
+    if (this.hostStartedAt !== null) {
+      postToHost({ type: 'level-complete', level: this.levelIdx + 1, stars: st.count, durationMs: Math.round(performance.now() - this.hostStartedAt) });
+      this.hostStartedAt = null;
+    }
     logEvent({ level: this.pz.id, action: 'win', values: { stars: st.count, failedRuns: this.failedRuns }, hintsUsed: this.hintsUsed, run: this.failedRuns, firstUnaided: this.failedRuns === 0 && this.hintsUsed === 0 ? true : undefined });
     const next = this.levelIdx + 1 < PUZZLES.length ? this.levelIdx + 1 : -1;
     const star = (on: boolean, i: number) => `<span class="${on ? 'on' : ''}" style="animation-delay:${0.2 + i * 0.3}s">★</span>`;
@@ -1265,6 +1283,7 @@ export class PuzzleGame {
           c.querySelector('[data-again]')!.addEventListener('click', () => {
             this.closeCard();
             this.backToBuild();
+            this.hostLevelStart();
           });
         }, 'center'),
       this.testMode ? 0 : 900,
