@@ -133,7 +133,7 @@ export class Game {
     this.controls.minPolarAngle = 0.45;
     this.controls.maxPolarAngle = 1.12;
     this.controls.minDistance = 9;
-    this.controls.maxDistance = 34;
+    this.controls.maxDistance = 60;
     this.controls.screenSpacePanning = false;
     this.controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
     this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
@@ -1585,7 +1585,7 @@ export class Game {
     const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, pts.length));
     const ext = Math.max(...pts.map((p) => Math.hypot(p.x - c.x, (p.z - c.z) * 1.25)), 6);
     const k = aspect < 0.8 ? 4.7 : aspect < 1.2 ? 2.55 : aspect < 1.6 ? 2.2 : 2.0;
-    return { dist: Math.max(18, ext * k + 4), target: new THREE.Vector3(c.x, 0, c.z + 1.4) };
+    return { dist: Math.max(18, ext * k + 4), target: new THREE.Vector3(c.x, 0, c.z + (aspect < 0.8 ? -2.5 : 1.4)) };
   }
 
   cameraHome(instant = false, dur = 0.8): void {
