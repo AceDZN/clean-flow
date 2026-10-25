@@ -26,6 +26,7 @@ export const ICONS = {
   motion: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.2" fill="none"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>',
   restart: '<svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2-5" stroke="currentColor" stroke-width="2.4" fill="none"/><path d="M4 3v5h5" stroke="currentColor" stroke-width="2.4" fill="none"/></svg>',
   pipe: '<svg viewBox="0 0 48 48"><path d="M6 14h16a10 10 0 0 1 10 10v16" stroke="#8d97a0" stroke-width="10" fill="none"/><path d="M6 14h16a10 10 0 0 1 10 10v16" stroke="#cfd8de" stroke-width="5" fill="none"/><rect x="3" y="7" width="6" height="14" rx="2" fill="#b98a3c"/><rect x="25" y="37" width="14" height="6" rx="2" fill="#b98a3c"/></svg>',
+  home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z" fill="currentColor"/></svg>',
   lens: '<svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2.4" fill="none"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>',
 };
 

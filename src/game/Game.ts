@@ -570,6 +570,7 @@ export class Game {
       <div id="pipe-meter" class="panel">${ICONS.pipe}<div>תקציב צנרת</div><div class="bar"><i></i><span></span></div></div>
       <div id="side-buttons">
         ${L.noHints ? '' : `<button class="iconbtn" id="hintbtn" aria-label="רמז">💡 <span>רמז</span></button>`}
+        <button class="iconbtn" id="b-home" aria-label="מבט על כל העמק" title="מבט על כל העמק (C)">${ICONS.home}</button>
         <button class="iconbtn" id="b-restart" aria-label="הרצה מחדש (הרשת נשמרת)" title="הרצה מחדש — הרשת נשמרת">${ICONS.restart}</button>
       </div>
       <div id="coach" class="panel hidden"></div>
@@ -583,6 +584,10 @@ export class Game {
     });
     $('#b-menu').addEventListener('click', () => this.openMenu());
     $('#b-restart').addEventListener('click', () => this.restartRun());
+    $('#b-home').addEventListener('click', () => {
+      this.preDive = null;
+      this.cameraHome(false, 0.6);
+    });
     document.getElementById('hintbtn')?.addEventListener('click', () => this.showHint());
     this.ui.querySelectorAll<HTMLElement>('#tray .card').forEach((c) => {
       c.addEventListener('pointerdown', (e) => {
@@ -757,10 +762,24 @@ export class Game {
     // ports first (they are small)
     const portHit = hits.find((h) => h.object.userData.port);
     if (portHit) return { kind: 'port', id: portHit.object.userData.nodeId, port: portHit.object.userData.port };
+    // several node volumes can overlap in perspective: take the one whose centre is nearest the pointer
+    const nodeHits = hits.filter((h) => h.object.userData.nodeId && !h.object.userData.port);
+    if (nodeHits.length) {
+      let best = nodeHits[0].object.userData.nodeId as string;
+      let bd = Infinity;
+      for (const h of nodeHits) {
+        const id = h.object.userData.nodeId as string;
+        const c = this.nodeViews.get(id)!.group.position.clone().add(new THREE.Vector3(0, 0.6, 0)).project(this.camera);
+        const d = Math.hypot(c.x - this.pointer.x, (c.y - this.pointer.y) * 0.8);
+        if (d < bd) {
+          bd = d;
+          best = id;
+        }
+      }
+      return { kind: 'node', id: best };
+    }
     const h = hits[0];
-    if (!h) return null;
-    if (h.object.userData.pipeId) return { kind: 'pipe', id: h.object.userData.pipeId };
-    if (h.object.userData.nodeId) return { kind: 'node', id: h.object.userData.nodeId };
+    if (h?.object.userData.pipeId) return { kind: 'pipe', id: h.object.userData.pipeId };
     return null;
   }
 
@@ -887,6 +906,7 @@ export class Game {
       else this.select(null);
     } else if (k === 'f' || k === 'F') this.toggleFast();
     else if (k === 'r' || k === 'R') this.restartRun();
+    else if (k === 'c' || k === 'C') this.cameraHome(false, 0.6);
     else if (k === 'h' || k === 'H') this.showHint();
     else if (k === 'Delete' || k === 'Backspace') this.deleteSelected();
     else if (/^[1-8]$/.test(k)) {
@@ -1145,7 +1165,7 @@ export class Game {
         <button class="btn secondary" data-a="title">בחירת שבוע</button>
         <button class="btn ghost" style="color:var(--brown);border-color:var(--brass-edge)" data-a="motion">${this.reduced ? 'תנועה מלאה' : 'הפחתת תנועה'}</button>
       </div>
-      <p style="font-size:13px">גרירה על הקרקע: הזזת מצלמה · קליק ימני/שתי אצבעות: סיבוב · גלגלת: זום · רווח: הפעלה/עצירה · F: מהירות · R: הרצה מחדש · Delete: פירוק הנבחר · 1–8: מכונה מהמגש</p>`, (m) => {
+      <p style="font-size:13px">גרירה על הקרקע: הזזת מצלמה · קליק ימני/שתי אצבעות: סיבוב · גלגלת: זום · רווח: הפעלה/עצירה · F: מהירות · R: הרצה מחדש · C: מבט על העמק · Delete: פירוק הנבחר · 1–8: מכונה מהמגש</p>`, (m) => {
       m.querySelectorAll<HTMLButtonElement>('[data-a]').forEach((b) =>
         b.addEventListener('click', () => {
           const a = b.dataset.a;
@@ -1402,7 +1422,11 @@ export class Game {
             }
           }
           const first = w.nodes.get(e.nodes[0]);
-          if (first && !this.reduced) this.flyTo(this.nodePos(first).lerp(new THREE.Vector3(), 0.3), 20, 0.9);
+          if (first && !this.reduced) {
+            const home = this.homePose();
+            this.preDive = null;
+            this.flyTo(home.target.clone().lerp(this.nodePos(first), 0.25), home.dist, 0.9);
+          }
           this.modal(`<h2>📣 חדש בעמק!</h2><p>${e.he}</p><p style="font-size:14px">הזמן נעצר. בנו את מה שצריך ולחצו המשך.</p><div class="actions"><button class="btn" data-x>הבנתי — לבנות</button></div>`, (m) => m.querySelector('[data-x]')!.addEventListener('click', () => this.closeModal()));
           break;
         }
@@ -1544,8 +1568,12 @@ export class Game {
 
   homePose(): { dist: number; target: THREE.Vector3 } {
     const aspect = this.canvas.clientWidth / Math.max(1, this.canvas.clientHeight);
-    const dist = aspect < 0.8 ? 46 : aspect < 1.2 ? 29 : aspect < 1.6 ? 25 : 23;
-    return { dist, target: new THREE.Vector3(0, 0, 0.8) };
+    // frame every node of the week (hidden ones too, so a reveal stays on screen)
+    const pts = [...this.world.nodes.values()].map((n) => this.nodePos(n));
+    const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, pts.length));
+    const ext = Math.max(...pts.map((p) => Math.hypot(p.x - c.x, (p.z - c.z) * 1.25)), 6);
+    const k = aspect < 0.8 ? 3.6 : aspect < 1.2 ? 2.55 : aspect < 1.6 ? 2.2 : 2.0;
+    return { dist: Math.max(18, ext * k + 4), target: new THREE.Vector3(c.x, 0, c.z + 1.4) };
   }
 
   cameraHome(instant = false, dur = 0.8): void {
@@ -1608,7 +1636,7 @@ export class Game {
     let best: Hex | null = null;
     let bestScore = -Infinity;
     for (const t of this.world.tiles.values()) {
-      if (t.water || this.world.nodeAt(t)) continue;
+      if (t.water || [...this.world.nodes.values()].some((n) => Math.abs(n.q - t.q) + Math.abs(n.r - t.r) + Math.abs(n.q + n.r - t.q - t.r) <= 4)) continue;
       const { x, z } = hexToWorld(t.q, t.r);
       const score = z * 1.0 + x * 0.6 - Math.abs(Math.hypot(x, z) - BOARD_RADIUS * 1.3) * 0.8;
       if (score > bestScore && Math.hypot(x, z) < BOARD_RADIUS * 1.55) {

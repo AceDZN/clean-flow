@@ -1,9 +1,10 @@
 // Headless playthroughs with real mouse input (no state injection).
 // Usage: node scripts/playtest.mjs <scenario> [--url http://localhost:5195/] [--out docs/captures]
-// Scenarios: week1, week1-fail, lens, mobile, all
+// Scenarios: week1, week1-fail, lens, mobile, campaign, all
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+const SOLUTIONS = JSON.parse(fs.readFileSync(new URL('../tests/solutions.json', import.meta.url), 'utf8'));
 
 const args = process.argv.slice(2);
 const scenario = args[0] ?? 'week1';
@@ -140,6 +141,95 @@ async function lensShot(page) {
   await shot(page, 'w4-lens-mine');
 }
 
+
+async function unlockAll(page) {
+  await page.evaluate(() => localStorage.setItem('cleanflow.progress.v1', JSON.stringify({ 'w1-iron': 1, 'w2-salt': 1, 'w3-oil': 1, 'w4-classic': 1, 'w5-ink': 1 })));
+  await page.reload();
+  await page.waitForSelector('#start');
+}
+
+/** Build a level's intended network with mouse drags, like a player. */
+async function buildPlan(page, plan, ids, onlyPipes) {
+  if (!onlyPipes) {
+    for (const st of plan.stations ?? []) {
+      const id = await placeStation(page, st.type, st.q, st.r);
+      if (!id) throw new Error(`could not place ${st.type} at ${st.q},${st.r}`);
+      ids[st.name] = id;
+      await step(page, 400);
+      if (st.temp && st.temp !== 100) {
+        const c = await node(page, id);
+        await page.mouse.click(c.x, c.y);
+        await page.click(`[data-temp="${st.temp}"]`);
+        await page.click('#inspector [data-x]');
+      }
+    }
+  }
+  const deferred = [];
+  for (const [a, p, b] of plan.pipes) {
+    const visible = await page.evaluate(([x, y]) => {
+      const s = JSON.parse(window.render_game_to_text());
+      return [x, y].every((id) => s.nodes.some((n) => n.id === id));
+    }, [ids[a] ?? a, ids[b] ?? b]);
+    if (!visible) {
+      deferred.push([a, p, b]);
+      continue;
+    }
+    await pipe(page, ids[a] ?? a, p, ids[b] ?? b);
+  }
+  return deferred;
+}
+
+async function campaign(page) {
+  await unlockAll(page);
+  const levels = Object.keys(SOLUTIONS);
+  const results = [];
+  for (let i = 0; i < levels.length; i++) {
+    await page.click(`.weekbtn[data-l="${i}"]`);
+    await page.click('[data-go]');
+    await step(page, 2500);
+    if (await page.locator('#coach [data-skip]').isVisible()) await page.click('#coach [data-skip]');
+    const ids = {};
+    let deferred = await buildPlan(page, SOLUTIONS[levels[i]], ids, false);
+    await shot(page, `c${i + 1}-a-built`);
+    await page.click('#playbtn');
+    let s;
+    let midShot = false;
+    for (let t = 0; t < 200000; t += 500) {
+      await step(page, 500);
+      s = await state(page);
+      if (!midShot && s.time > 14) {
+        await shot(page, `c${i + 1}-b-running`);
+        midShot = true;
+      }
+      if (s.state === 'paused' && s.pauseReason === 'event') {
+        await shot(page, `c${i + 1}-event`);
+        await page.click('#modal [data-x]');
+        deferred = await buildPlan(page, { pipes: deferred }, ids, true);
+        await page.click('#playbtn');
+      }
+      if (s.state === 'won' || s.state === 'failed') break;
+    }
+    await step(page, 1500);
+    await shot(page, `c${i + 1}-c-result`);
+    results.push({ level: levels[i], state: s.state, t: s.time, result: s.result });
+    console.log(levels[i], s.state, s.time, JSON.stringify(s.result));
+    if (s.state !== 'won') break;
+    // pick a perk and move on via the title screen for a clean start
+    if (i < levels.length - 1) {
+      await page.click('.perk[data-perk="pipe"]');
+      await page.click('[data-replay]');
+      await page.click('#b-menu');
+      await page.click('[data-a="title"]');
+    }
+  }
+  return results;
+}
+
+if (scenario === 'campaign' || scenario === 'all') {
+  const p = await open();
+  await campaign(p);
+  await p.close();
+}
 if (scenario === 'week1' || scenario === 'all') {
   const p = await open();
   await week1(p);

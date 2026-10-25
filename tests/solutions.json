@@ -1,0 +1,346 @@
+{
+ "w1-iron": {
+  "stations": [
+   {
+    "name": "M",
+    "type": "magnet",
+    "q": 0,
+    "r": 0
+   }
+  ],
+  "pipes": [
+   [
+    "mine",
+    "out",
+    "M"
+   ],
+   [
+    "M",
+    "magnetic",
+    "foundry"
+   ],
+   [
+    "M",
+    "rest",
+    "builder"
+   ],
+   [
+    "spring",
+    "out",
+    "village"
+   ]
+  ]
+ },
+ "w2-salt": {
+  "stations": [
+   {
+    "name": "F",
+    "type": "filter",
+    "q": -1,
+    "r": 1
+   },
+   {
+    "name": "P",
+    "type": "pan",
+    "q": 2,
+    "r": 0
+   },
+   {
+    "name": "S",
+    "type": "still",
+    "q": -1,
+    "r": -3,
+    "temp": 100
+   }
+  ],
+  "pipes": [
+   [
+    "marsh",
+    "out",
+    "F"
+   ],
+   [
+    "F",
+    "residue",
+    "builder"
+   ],
+   [
+    "F",
+    "filtrate",
+    "P"
+   ],
+   [
+    "P",
+    "crystals",
+    "bakery"
+   ],
+   [
+    "saltpond",
+    "out",
+    "S"
+   ],
+   [
+    "S",
+    "distillate",
+    "clinic"
+   ],
+   [
+    "S",
+    "remainder",
+    "waste"
+   ]
+  ]
+ },
+ "w3-oil": {
+  "stations": [
+   {
+    "name": "U",
+    "type": "funnel",
+    "q": -1,
+    "r": 2
+   },
+   {
+    "name": "P",
+    "type": "pan",
+    "q": -2,
+    "r": 4
+   }
+  ],
+  "pipes": [
+   [
+    "spill",
+    "out",
+    "U"
+   ],
+   [
+    "U",
+    "top",
+    "soap"
+   ],
+   [
+    "U",
+    "bottom",
+    "village"
+   ],
+   [
+    "sweet",
+    "out",
+    "P"
+   ],
+   [
+    "P",
+    "crystals",
+    "candy"
+   ],
+   [
+    "spring",
+    "out",
+    "village"
+   ]
+  ]
+ },
+ "w4-classic": {
+  "stations": [
+   {
+    "name": "M",
+    "type": "magnet",
+    "q": -3,
+    "r": 1
+   },
+   {
+    "name": "T",
+    "type": "tank",
+    "q": -1,
+    "r": -1
+   },
+   {
+    "name": "F",
+    "type": "filter",
+    "q": 2,
+    "r": -1
+   },
+   {
+    "name": "P",
+    "type": "pan",
+    "q": 2,
+    "r": 1
+   }
+  ],
+  "pipes": [
+   [
+    "mine",
+    "out",
+    "M"
+   ],
+   [
+    "M",
+    "magnetic",
+    "foundry"
+   ],
+   [
+    "M",
+    "rest",
+    "T"
+   ],
+   [
+    "spring",
+    "out",
+    "T"
+   ],
+   [
+    "T",
+    "out",
+    "F"
+   ],
+   [
+    "F",
+    "residue",
+    "builder"
+   ],
+   [
+    "F",
+    "filtrate",
+    "P"
+   ],
+   [
+    "P",
+    "crystals",
+    "bakery"
+   ]
+  ]
+ },
+ "w5-ink": {
+  "stations": [
+   {
+    "name": "C",
+    "type": "chroma",
+    "q": -2,
+    "r": -2
+   },
+   {
+    "name": "S",
+    "type": "still",
+    "q": 1,
+    "r": 3,
+    "temp": 78
+   }
+  ],
+  "pipes": [
+   [
+    "ink",
+    "out",
+    "C"
+   ],
+   [
+    "C",
+    "slow",
+    "print"
+   ],
+   [
+    "C",
+    "fast",
+    "waste"
+   ],
+   [
+    "ferment",
+    "out",
+    "S"
+   ],
+   [
+    "S",
+    "distillate",
+    "perfume"
+   ],
+   [
+    "S",
+    "remainder",
+    "village"
+   ]
+  ]
+ },
+ "w6-flood": {
+  "stations": [
+   {
+    "name": "F",
+    "type": "filter",
+    "q": -3,
+    "r": 1
+   },
+   {
+    "name": "P",
+    "type": "pan",
+    "q": 0,
+    "r": -2
+   },
+   {
+    "name": "U",
+    "type": "funnel",
+    "q": -1,
+    "r": -3
+   },
+   {
+    "name": "M",
+    "type": "magnet",
+    "q": -2,
+    "r": 5
+   }
+  ],
+  "pipes": [
+   [
+    "creek",
+    "out",
+    "F"
+   ],
+   [
+    "F",
+    "residue",
+    "builder"
+   ],
+   [
+    "F",
+    "filtrate",
+    "P"
+   ],
+   [
+    "P",
+    "crystals",
+    "dye"
+   ],
+   [
+    "dressing",
+    "out",
+    "U"
+   ],
+   [
+    "U",
+    "top",
+    "soap"
+   ],
+   [
+    "U",
+    "bottom",
+    "pickle"
+   ],
+   [
+    "powder",
+    "out",
+    "M"
+   ],
+   [
+    "M",
+    "magnetic",
+    "foundry"
+   ],
+   [
+    "M",
+    "rest",
+    "fertilizer"
+   ],
+   [
+    "blackmine",
+    "out",
+    "lab"
+   ]
+  ]
+ }
+}
