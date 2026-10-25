@@ -2,7 +2,7 @@
 export interface LearnEvent {
   at: number; // ms since session start
   level: string;
-  action: 'tag' | 'place' | 'connect' | 'disconnect' | 'remove' | 'run' | 'win' | 'fail' | 'hint' | 'reject' | 'still-temp' | 'lens';
+  action: 'tag' | 'place' | 'connect' | 'disconnect' | 'remove' | 'run' | 'win' | 'fail' | 'hint' | 'reject' | 'still-temp' | 'lens' | 'undo';
   values?: Record<string, unknown>;
   outcome?: string;
   hintsUsed: number;
@@ -60,6 +60,23 @@ export function loadProgress(): Record<string, number> {
 export function saveProgress(p: Record<string, number>): void {
   try {
     localStorage.setItem(PKEY, JSON.stringify(p));
+  } catch {
+    /* ignore */
+  }
+}
+
+// ---- best arcade scores per week ----
+const BKEY = 'cleanflow.best.v1';
+export function loadBests(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(BKEY) ?? '{}') as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+export function saveBests(b: Record<string, number>): void {
+  try {
+    localStorage.setItem(BKEY, JSON.stringify(b));
   } catch {
     /* ignore */
   }

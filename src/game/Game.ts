@@ -18,7 +18,8 @@ import { ParticleField, buildPipeMesh, drawPipePackets, glassPipeMaterial, pipeC
 import { buildEnvironment, buildTerrainView, tileTop, type Environment, type TerrainView } from '../render/terrain';
 import { $, CLASS_ICON, ICONS, el, f, lensPanel, stampFeedback, stationIconFallback, sundialSvg } from '../ui/hud';
 import { audio } from './audio';
-import { loadProgress, logEvent, saveProgress, sessionLog } from './log';
+import { ScoreKeeper, type ScoreEvent } from './score';
+import { loadBests, loadProgress, logEvent, saveBests, saveProgress, sessionLog } from './log';
 
 type Mode =
   | { kind: 'idle' }
@@ -27,6 +28,11 @@ type Mode =
   | { kind: 'move'; id: string };
 
 type Sel = { kind: 'node' | 'pipe'; id: string } | null;
+
+interface BuildSnapshot {
+  stations: { id: string; type: StationType; q: number; r: number; temp?: StillTemp }[];
+  pipes: [string, string, string][];
+}
 
 interface Label {
   root: HTMLElement;
@@ -94,6 +100,10 @@ export class Game {
   firstDecision = new Set<string>();
   perk: { pipe: number; overflow: number } = { pipe: 0, overflow: 1 };
   progress = loadProgress();
+  score = new ScoreKeeper([]);
+  bests: Record<string, number> = loadBests();
+  undoStack: BuildSnapshot[] = [];
+  private shownScore = 0;
   icons: Partial<Record<StationType, string>> = {};
   lastAccepted = new Map<string, number>();
   noteShown = new Set<string>();
@@ -119,7 +129,7 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -260,6 +270,19 @@ export class Game {
 
   // ======================= level build =======================
 
+  /** a fresh arcade score for a new run of the current week */
+  newScore(): void {
+    const w = this.world;
+    const customers = [...w.nodes.values()].filter((n) => n.kind === 'customer').map((n) => {
+      const want = n.spec!.required![0];
+      let per = 0;
+      for (const src of w.level.nodes) if (src.packet?.[want]) per = Math.max(per, src.packet[want]!);
+      return { id: n.id, quota: n.spec!.quota ?? 0, perPacket: per };
+    });
+    this.score = new ScoreKeeper(customers, w.level.index + w.runs);
+    this.shownScore = 0;
+  }
+
   loadLevel(i: number, withPerk: boolean): void {
     this.levelIdx = i;
     const base = LEVELS[i];
@@ -296,6 +319,8 @@ export class Game {
     this.syncViews();
     this.env.setDayFraction(0);
     if (this.mascot) this.placeMascot();
+    this.undoStack = [];
+    this.newScore();
   }
 
   nodePos(n: { q: number; r: number }): THREE.Vector3 {
@@ -492,6 +517,17 @@ export class Game {
         lab.meter.classList.toggle('done', fr >= 1);
         const recentReject = n.rejected > 0 && this.visualT - (this.lastAccepted.get('rej:' + id) ?? -99) < 4;
         lab.meter.classList.toggle('warn', recentReject);
+        const rush = this.score.rushes.find((r) => r.customer === id && r.state === 'live');
+        lab.meter.classList.toggle('rush', !!rush);
+        let rEl = lab.meter.querySelector('.rushtag') as HTMLElement | null;
+        if (rush) {
+          if (!rEl) {
+            rEl = el('div', { class: 'rushtag' });
+            lab.meter.append(rEl);
+          }
+          const fmt = (x: number) => (rush.need < 5 ? x.toFixed(1) : String(Math.floor(x + 1e-6)));
+          rEl.innerHTML = `⚡ ${fmt(Math.min(rush.got, rush.need))}/${fmt(rush.need)} · ${Math.max(0, Math.ceil(rush.end - w.t))}s`;
+        } else rEl?.remove();
         let alert = lab.meter.querySelector('.alert');
         if (recentReject && !alert) {
           alert = el('div', { class: 'alert' }, '!');
@@ -570,10 +606,13 @@ export class Game {
         <button class="iconbtn" id="b-mute" aria-label="צליל">${audio.muted ? ICONS.mute : ICONS.sound}</button>
       </div>
       <div id="status-banner" class="panel hidden" aria-live="polite"></div>
+      <div id="score" class="panel hidden" aria-live="off"><span class="lbl">ניקוד</span><b class="num">0</b><span class="combo hidden">קומבו <b>x1</b></span></div>
+      <div id="rush-banner" class="hidden" aria-live="polite"></div>
       <div id="tray" role="toolbar" aria-label="מכונות">${types.map((t) => this.cardHtml(t)).join('')}</div>
       <div id="pipe-meter" class="panel">${ICONS.pipe}<div>תקציב צנרת</div><div class="bar"><i></i><span></span></div></div>
       <div id="side-buttons">
         ${L.noHints ? '' : `<button class="iconbtn" id="hintbtn" aria-label="רמז">💡 <span>רמז</span></button>`}
+        <button class="iconbtn" id="b-undo" aria-label="ביטול פעולה" title="ביטול פעולה (Ctrl/⌘+Z)">${ICONS.undo}</button>
         <button class="iconbtn" id="b-home" aria-label="מבט על כל העמק" title="מבט על כל העמק (C)">${ICONS.home}</button>
         <button class="iconbtn" id="b-restart" aria-label="הרצה מחדש (הרשת נשמרת)" title="הרצה מחדש — הרשת נשמרת">${ICONS.restart}</button>
       </div>
@@ -588,6 +627,7 @@ export class Game {
     });
     $('#b-menu').addEventListener('click', () => this.openMenu());
     $('#b-restart').addEventListener('click', () => this.restartRun());
+    $('#b-undo').addEventListener('click', () => this.undo());
     $('#b-home').addEventListener('click', () => {
       this.preDive = null;
       this.cameraHome(false, 0.6);
@@ -648,6 +688,11 @@ export class Game {
     pb.classList.toggle('pulse', w.state === 'planning' && this.readyHint());
     pb.innerHTML = running ? `${ICONS.pause}<span>עצירה</span>` : `${ICONS.play}<span>${w.state === 'planning' ? 'פתחו ברזים' : 'המשך'}</span>`;
     $('#b-fast').classList.toggle('on', w.speed > 1);
+    $('#b-fast').innerHTML = `<b style="font-size:16px">x${w.speed}</b>`;
+    const sc = document.getElementById('score');
+    if (sc) sc.classList.toggle('hidden', w.state === 'planning' && this.score.total === 0);
+    const ub = document.getElementById('b-undo') as HTMLButtonElement | null;
+    if (ub) ub.disabled = this.undoStack.length === 0;
     const hb = document.getElementById('hintbtn');
     if (hb) hb.querySelector('span')!.textContent = `רמז ${Math.min(this.hintIdx, 3)}/3`;
     const banner = $('#status-banner');
@@ -867,8 +912,10 @@ export class Game {
       case 'move': {
         const h = this.pickHex();
         if (h) {
+          const snap = this.snapshot();
           const r = this.world.moveStation(this.mode.id, h);
           if (r.ok) {
+            this.pushUndo(snap);
             this.syncViews();
             audio.play('place');
             this.log('place', { moved: this.mode.id, q: h.q, r: h.r });
@@ -918,7 +965,10 @@ export class Game {
     if (this.screen !== 'play') return;
     if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
     const k = e.key;
-    if (k === ' ') {
+    if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) {
+      e.preventDefault();
+      this.undo();
+    } else if (k === ' ') {
       e.preventDefault();
       this.togglePlay();
     } else if (k === 'Escape') {
@@ -1065,6 +1115,7 @@ export class Game {
   tryPlace(h: Hex): void {
     if (this.mode.kind !== 'place') return;
     const type = this.mode.type;
+    const snap = this.snapshot();
     const r = this.world.placeStation(type, h);
     if (!r.ok) {
       this.toast(r.he);
@@ -1072,6 +1123,7 @@ export class Game {
       return;
     }
     audio.play('place');
+    this.pushUndo(snap);
     this.log('place', { type, q: h.q, r: h.r });
     this.syncViews();
     const v = this.nodeViews.get(r.id!)!;
@@ -1083,6 +1135,7 @@ export class Game {
   }
 
   tryConnect(from: string, port: string, to: string): void {
+    const snap = this.snapshot();
     const r = this.world.connect(from, port, to);
     if (!r.ok) {
       this.toast(r.he);
@@ -1091,14 +1144,58 @@ export class Game {
       return;
     }
     audio.play('connect');
+    this.pushUndo(snap);
     this.log('connect', { from, port, to });
     this.syncViews();
     this.setMode({ kind: 'idle' });
     this.updateCoach();
   }
 
+  snapshot(): BuildSnapshot {
+    const w = this.world;
+    return {
+      stations: [...w.nodes.values()].filter((n) => n.kind === 'station').map((n) => ({ id: n.id, type: n.station!, q: n.q, r: n.r, temp: n.cfg.stillTemp })),
+      pipes: [...w.pipes.values()].map((p) => [p.from, p.fromPort, p.to] as [string, string, string]),
+    };
+  }
+
+  pushUndo(s: BuildSnapshot): void {
+    this.undoStack.push(s);
+    if (this.undoStack.length > 50) this.undoStack.shift();
+  }
+
+  /** restore the network as it was before the last build action */
+  undo(): void {
+    const snap = this.undoStack.pop();
+    if (!snap || this.screen !== 'play') return;
+    const w = this.world;
+    this.setMode({ kind: 'idle' });
+    this.select(null);
+    for (const id of [...w.pipes.keys()]) w.disconnect(id);
+    for (const n of [...w.nodes.values()]) if (n.kind === 'station') w.removeStation(n.id);
+    const ids: Record<string, string> = {};
+    for (const st of snap.stations) {
+      const r = w.placeStation(st.type, st);
+      if (r.ok) {
+        ids[st.id] = r.id!;
+        if (st.temp && st.type === 'still') w.setStillTemp(r.id!, st.temp);
+      }
+    }
+    for (const [a, port, b] of snap.pipes) w.connect(ids[a] ?? a, port, ids[b] ?? b);
+    this.syncViews();
+    for (const st of snap.stations) {
+      const v = this.nodeViews.get(ids[st.id]);
+      if (v) v.group.scale.setScalar(NODE_SCALE);
+    }
+    audio.play('whoosh');
+    this.log('undo', { stations: snap.stations.length, pipes: snap.pipes.length });
+    this.refreshHud();
+    this.updateCoach();
+  }
+
   deleteSelected(): void {
     if (!this.sel) return;
+    if (this.sel.kind === 'pipe' || this.world.nodes.get(this.sel.id)?.kind === 'station') this.pushUndo(this.snapshot());
     if (this.sel.kind === 'pipe') {
       const p = this.world.pipes.get(this.sel.id);
       this.world.disconnect(this.sel.id);
@@ -1135,7 +1232,8 @@ export class Game {
   }
 
   toggleFast(): void {
-    this.world.speed = this.world.speed > 1 ? 1 : 2;
+    this.world.speed = this.world.speed >= 3 ? 1 : this.world.speed + 1;
+    audio.play('click');
     this.refreshHud();
   }
 
@@ -1143,6 +1241,7 @@ export class Game {
     if (this.screen === 'result') this.screen = 'play';
     this.closeModal();
     this.world.resetRun();
+    this.newScore();
     this.noteShown.clear();
     this.stallShown.clear();
     this.env.setDayFraction(0);
@@ -1193,6 +1292,7 @@ export class Game {
           this.closeModal();
           if (a === 'restart') this.restartRun();
           if (a === 'clear') {
+            this.pushUndo(this.snapshot());
             for (const id of [...this.world.pipes.keys()]) this.world.disconnect(id);
             for (const n of [...this.world.nodes.values()]) if (n.kind === 'station') this.world.removeStation(n.id);
             this.world.resetRun();
@@ -1388,6 +1488,8 @@ export class Game {
           const n = w.nodes.get(e.node)!;
           const v = this.nodeViews.get(e.node)!;
           const door = v.group.position.clone().add(new THREE.Vector3(0, 0.6, 0.5));
+          const credit = e.accepted ? (n.spec!.required ?? []).reduce((a, u) => a + (e.comp[u] ?? 0), 0) : 0;
+          this.scoreEvents(this.score.deliver(w.t, e.node, e.accepted, credit));
           if (e.accepted) {
             audio.play('chime');
             const want = n.spec!.required![0];
@@ -1502,6 +1604,72 @@ export class Game {
     }
   }
 
+  /** arcade feedback: floating points, combo badge, rush orders */
+  scoreEvents(evs: ScoreEvent[]): void {
+    for (const e of evs) {
+      const v = e.node ? this.nodeViews.get(e.node) : undefined;
+      const above = v ? v.group.position.clone().add(new THREE.Vector3(0, v.labelY * NODE_SCALE * 0.8 + 1.6, 0)) : null;
+      switch (e.kind) {
+        case 'points':
+          if (above) this.floater(`+${e.points}`, above, e.points! > 10 ? '#ffd166' : '#ffffff');
+          if (e.combo! >= 3 && e.combo! % 3 === 0) {
+            audio.play('combo');
+            this.comboPop(e.combo!);
+          }
+          break;
+        case 'combo-break':
+          if (above) this.floater('קומבו נשבר', above, '#ff9a8a');
+          break;
+        case 'rush-start': {
+          const n = this.world.nodes.get(e.node!)!;
+          const want = n.spec!.wantHe ?? '';
+          const amt = e.rush!.need < 5 ? e.rush!.need.toFixed(1) : Math.round(e.rush!.need);
+          this.rushBanner(`⚡ הזמנה דחופה! ${n.he}: עוד ${f(amt)} ${want} תוך ${f(Math.round(e.rush!.end - e.rush!.start))} שניות — בונוס ${f(100)}`);
+          audio.play('rush');
+          break;
+        }
+        case 'rush-done':
+          if (above) {
+            this.floater('⚡ +100', above.clone().add(new THREE.Vector3(0, 0.6, 0)), '#ffd166');
+            this.fx.confetti(above, 30);
+          }
+          this.rushBanner('⚡ ההזמנה הדחופה סופקה! +100', 1800);
+          audio.play('win');
+          break;
+        case 'rush-missed':
+          if (above) this.floater('ההזמנה הדחופה פספסה', above, '#cfcfcf');
+          break;
+      }
+    }
+    this.updateScoreHud();
+  }
+
+  comboPop(combo: number): void {
+    const c = document.querySelector('#score .combo') as HTMLElement | null;
+    if (!c) return;
+    c.classList.remove('pop');
+    void c.offsetWidth;
+    c.classList.add('pop');
+    void combo;
+  }
+
+  rushBanner(html: string, ms = 3200): void {
+    const b = document.getElementById('rush-banner');
+    if (!b) return;
+    b.innerHTML = html;
+    b.classList.remove('hidden');
+    clearTimeout((b as unknown as { _h: number })._h);
+    (b as unknown as { _h: number })._h = window.setTimeout(() => b.classList.add('hidden'), ms);
+  }
+
+  updateScoreHud(): void {
+    const sc = document.getElementById('score');
+    if (!sc) return;
+    const combo = sc.querySelector('.combo') as HTMLElement;
+    combo.classList.toggle('hidden', this.score.combo < 2);
+    combo.querySelector('b')!.textContent = `x${this.score.multiplier()} · ${this.score.combo}`;
+  }
+
   // ======================= results =======================
 
   explainFailure(): string {
@@ -1559,12 +1727,25 @@ export class Game {
     saveProgress(this.progress);
     let rejected = 0;
     for (const n of w.nodes.values()) rejected += n.rejected;
+    const before = this.score.total;
+    const bonus = this.score.finish(true, w.level.dayLength - w.t, w.pipeLeft(), rejected);
+    const finalScore = this.score.total;
+    const best = this.bests[L.id] ?? 0;
+    const newBest = finalScore > best;
+    if (newBest) {
+      this.bests[L.id] = finalScore;
+      saveBests(this.bests);
+    }
     const next = LEVELS[this.levelIdx + 1];
-    const star = (on: boolean) => `<span class="${on ? '' : 'off'}">⭐</span>`;
+    let si = 0;
+    const star = (on: boolean) => `<span class="${on ? 'pop' : 'off'}" style="animation-delay:${0.25 + si++ * 0.35}s">⭐</span>`;
+    if (!this.testMode) [0, 1, 2].forEach((i) => [st.done, st.tags, st.tidy][i] && window.setTimeout(() => audio.play('stamp'), 250 + i * 350));
     const isLast = !next;
     this.modal(`<h2>${isLast ? '🏆 העמק נקי!' : '🎉 השבוע הושלם!'}</h2>
       <div class="stars">${star(st.done)}${star(st.tags)}${star(st.tidy)}</div>
       <p>⭐ כל הלקוחות קיבלו את ההזמנה · ⭐ כל המקורות הוחתמו נכון בניסיון הראשון · ⭐ אפס דחיות ולא יותר מ-${f(L.par.stations)} מכונות</p>
+      <div class="scorebox"><div class="big">ניקוד <b data-count="${finalScore}">${before}</b>${newBest ? '<span class="best">שיא חדש!</span>' : `<span class="prev">שיא: ${f(best)}</span>`}</div>
+        <div class="rows"><span>משלוחים נקיים ${f(before - this.score.rushBonus)}</span><span>⚡ הזמנות דחופות ${f(this.score.rushBonus)}</span><span>☀️ זמן שנשאר ${f(bonus.time)}</span><span>🧪 צינור שנחסך ${f(bonus.pipe)}</span><span>✨ בלי דחיות ${f(bonus.clean)}</span><span>🔥 קומבו הכי ארוך ${f(this.score.bestCombo)}</span></div></div>
       <p style="font-size:14px">זמן: ${f(w.t.toFixed(0) + 's')} · מכונות: ${f(w.stationsUsed())} · צנרת: ${f(w.pipeUsed())} · משלוחים שנדחו: ${f(rejected)} · רמזים: ${f(this.hintsUsed)}</p>
       ${isLast ? `<p>עברתם את יום השיטפון בלי רמזים: ${st.tags ? 'סיווגתם זרמים חדשים, ' : ''}בחרתם שיטות לפי התכונות של זרמים שלא ראיתם קודם. כל הכבוד, מהנדסי העמק!</p>` : `<h4>שדרוג לשבוע הבא — בחרו אחד:</h4><div class="perks"><button class="perk" data-perk="pipe"><b>+5 צינור</b>עוד מטרים של זכוכית לשבוע הבא.</button><button class="perk" data-perk="overflow"><b>מאגרים גדולים</b>המקורות מחזיקים 50% יותר זמן לפני שיטפון.</button></div>`}
       <div class="actions">${isLast ? '<button class="btn" data-title>למסך הפתיחה</button>' : '<button class="btn" data-next disabled>לשבוע הבא ▶</button>'}<button class="btn secondary" data-replay>לשחק שוב את השבוע</button></div>`, (m) => {
@@ -1577,12 +1758,26 @@ export class Game {
           audio.play('click');
         }),
       );
+      // count the score up
+      const num = m.querySelector('[data-count]') as HTMLElement | null;
+      if (num) {
+        const target = Number(num.dataset.count);
+        let cur = before;
+        const stepUp = () => {
+          cur = Math.min(target, cur + Math.max(1, Math.ceil((target - cur) * 0.12)));
+          num.textContent = String(cur);
+          if (cur < target && !this.testMode) window.setTimeout(stepUp, 30);
+          else num.textContent = String(target);
+        };
+        window.setTimeout(stepUp, this.testMode ? 0 : 900);
+      }
       m.querySelector('[data-next]')?.addEventListener('click', () => this.startLevel(this.levelIdx + 1));
       m.querySelector('[data-title]')?.addEventListener('click', () => this.showTitle());
       m.querySelector('[data-replay]')!.addEventListener('click', () => {
         this.screen = 'play';
         this.closeModal();
         this.world.resetRun();
+        this.newScore();
         this.syncViews();
         this.refreshHud();
       });
@@ -1839,6 +2034,12 @@ export class Game {
       this.camera.position.set(Math.sin(a) * r, 15, Math.cos(a) * r);
       this.controls.target.set(0, 0, 0);
     }
+    if (this.screen === 'play' && w.state === 'running') this.scoreEvents(this.score.tick(w.t));
+    const scEl = document.querySelector('#score .num');
+    if (scEl && this.shownScore !== this.score.total) {
+      this.shownScore = Math.min(this.score.total, this.shownScore + Math.max(1, Math.ceil((this.score.total - this.shownScore) * 0.2)));
+      scEl.textContent = String(this.shownScore);
+    }
     if (this.camTween) {
       const tw = this.camTween;
       tw.t += dt;
@@ -2001,6 +2202,7 @@ export class Game {
       }),
       pipes: [...w.pipes.values()].map((p) => ({ id: p.id, from: p.from, port: p.fromPort, to: p.to, length: p.length, packets: p.packets.length, head: p.packets[0] ? comp(p.packets[0].comp) : null })),
       ui: { mode: this.mode.kind, selected: this.sel, lens: this.lensTarget ? { target: this.lensTarget, classTruthHidden: true } : null, modal: !!document.getElementById('modal'), hintsUsed: this.hintsUsed, tutorialStep: this.tutorialStep },
+      score: { total: this.score.total, combo: this.score.combo, bestCombo: this.score.bestCombo, rushes: this.score.rushes.map((r) => ({ customer: r.customer, need: +r.need.toFixed(2), got: +r.got.toFixed(2), state: r.state })) },
       result: w.state === 'won' ? { won: true, stars: w.stars() } : w.state === 'failed' ? { won: false, reason: w.failReason } : null,
     };
   }

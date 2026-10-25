@@ -1,5 +1,5 @@
 // Small synthesized sound kit (WebAudio, no files). Starts after the first user gesture.
-export type Sfx = 'place' | 'connect' | 'clank' | 'chime' | 'ptui' | 'siren' | 'stamp' | 'wrongstamp' | 'whoosh' | 'win' | 'fail' | 'gurgle' | 'click' | 'hiss' | 'reveal';
+export type Sfx = 'combo' | 'rush' | 'place' | 'connect' | 'clank' | 'chime' | 'ptui' | 'siren' | 'stamp' | 'wrongstamp' | 'whoosh' | 'win' | 'fail' | 'gurgle' | 'click' | 'hiss' | 'reveal';
 
 export class Audio {
   ctx: AudioContext | null = null;
@@ -104,6 +104,8 @@ export class Audio {
       case 'gurgle': this.tone(160 + Math.random() * 120, 0.08, 'sine', 0.06, 120); break;
       case 'hiss': this.hissNoise(0.5, 4000, 0.05, 0.8); break;
       case 'click': this.tone(1200, 0.04, 'square', 0.05); break;
+      case 'combo': [880, 1175, 1568].forEach((f, i) => this.tone(f, 0.18, 'triangle', 0.12, 0, i * 0.05)); break;
+      case 'rush': this.tone(660, 0.12, 'square', 0.08); this.tone(880, 0.12, 'square', 0.08, 0, 0.13); this.tone(660, 0.12, 'square', 0.08, 0, 0.26); break;
       case 'reveal': this.tone(392, 0.2, 'triangle', 0.2); this.tone(523, 0.3, 'triangle', 0.2, 0, 0.15); break;
       case 'win': [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.4, 'triangle', 0.22, 0, i * 0.12)); break;
       case 'fail': [392, 330, 262].forEach((f, i) => this.tone(f, 0.45, 'triangle', 0.2, 0, i * 0.18)); break;
