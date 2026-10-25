@@ -65,20 +65,50 @@ export function unitStateHe(c: Comp, u: ReturnType<typeof units>[number]): strin
   return 'מוצק';
 }
 
-export function legendHtml(c: Comp): string {
+/** the physical property players can use (Workbook step 2), shown as a small chip */
+export function propertyHe(u: ReturnType<typeof units>[number]): string {
+  const s = sub(u);
+  const bits: string[] = [];
+  if (s.magnetic) bits.push('🧲 נמשך למגנט');
+  if (s.phase === 'solid') {
+    if (s.solubility > 0) bits.push('💧 נמס במים');
+    else bits.push(s.grain >= 3 ? 'גרגר גדול · לא נמס' : 'לא נמס');
+    if (u === 'pigmentBlue' || u === 'pigmentYellow') bits.push(s.chromaSpeed >= 0.5 ? 'נע מהר על נייר' : 'נע לאט על נייר');
+  }
+  if (s.phase === 'liquid') {
+    if (Number.isFinite(s.boilingPoint)) bits.push(`רותח ב-${s.boilingPoint}°C`);
+    else bits.push('לא מתאדה בקלות');
+    if (!s.miscibleWithWater) bits.push(s.density < 1 ? 'קל ממים, לא מתערבב' : 'לא מתערבב');
+  }
+  return bits.join(' · ');
+}
+
+export function legendHtml(c: Comp, props = false): string {
   return units(c)
     .map((u) => {
       const s = sub(u);
-      return `<div>${shapeSvg(s.shape, s.color)}<span>${s.he} ${f(s.formula)} <small>· ${unitStateHe(c, u)}</small></span></div>`;
+      return `<div>${shapeSvg(s.shape, s.color)}<span>${s.he} ${s.formula ? f(s.formula) : ''} <small>· ${unitStateHe(c, u)}</small>${props ? `<em>${propertyHe(u)}</em>` : ''}</span></div>`;
     })
     .join('');
 }
 
 export function distributionHe(c: Comp): string {
-  const n = units(c).length;
-  if (n === 0) return 'ריק';
-  if (n === 1) return 'סוג אחד של חלקיקים בלבד.';
-  return isUniform(c) ? `${n} סוגי חלקיקים, מפוזרים באחידות בכל מקום.` : `${n} סוגי חלקיקים, בגושים / בשכבות נפרדות.`;
+  const us = units(c);
+  if (us.length === 0) return 'ריק';
+  if (us.length === 1) {
+    const atoms = Object.keys(sub(us[0]).atoms).length;
+    return `סוג אחד של חלקיקים בלבד${atoms > 1 ? ', וכל חלקיק בנוי מכמה סוגי אטומים' : ', מסוג אחד של אטומים'}.`;
+  }
+  if (isUniform(c)) return `${us.length} סוגי חלקיקים, מפוזרים באחידות בכל מקום.`;
+  const parts: string[] = [];
+  for (const u of us) {
+    const st = unitStateHe(c, u);
+    const s = sub(u);
+    if (st === 'מומס') parts.push(`${s.he} מומס`);
+    else if (s.phase === 'solid') parts.push(`${s.he} בגושים`);
+    else if (s.phase === 'liquid' && !s.miscibleWithWater) parts.push(`${s.he} בשכבה נפרדת`);
+  }
+  return `${us.length} סוגי חלקיקים, לא מפוזרים באחידות: ${parts.join(', ')}.`;
 }
 
 export interface LensPanelOpts {

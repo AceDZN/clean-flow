@@ -37,11 +37,11 @@ describe('every puzzle', () => {
 });
 
 describe('the mistakes students make produce the advertised consequence', () => {
-  it('p1: flipping the magnet sends sand to the foundry', () => {
-    expect(problem(P('p1'), { f1: { type: 'magnet', flipped: true } }, 'foundry')).toMatchObject({ kind: 'missing', impurity: 'sand' });
+  it('p1: the magnet facing the wrong way sends sand to the foundry (teaches flipping)', () => {
+    expect(problem(P('p1'), { f1: { type: 'magnet', flipped: false } }, 'foundry')).toMatchObject({ kind: 'missing', impurity: 'sand' });
   });
   it('p2: evaporating the distilled water leaves the village with nothing', () => {
-    expect(problem(P('p2'), { f1: { type: 'magnet', flipped: true }, i1: { type: 'pan', flipped: false } }, 'village')).toMatchObject({ kind: 'nothing' });
+    expect(problem(P('p2'), { f1: { type: 'magnet', flipped: false }, i1: { type: 'pan', flipped: false } }, 'village')).toMatchObject({ kind: 'nothing' });
   });
   it('p3: filter alone sends salty water to the bakery', () => {
     expect(problem(P('p3'), { f1: { type: 'filter', flipped: true } }, 'bakery')).toMatchObject({ kind: 'impure', impurity: 'water' });
@@ -52,9 +52,13 @@ describe('the mistakes students make produce the advertised consequence', () => 
   it('p6: oil and water both pass a filter', () => {
     expect(problem(P('p6'), { f1: { type: 'filter', flipped: true } }, 'soap')).toMatchObject({ kind: 'impure', impurity: 'water' });
   });
-  it('p7: clear sugar water is not pure water', () => {
-    expect(problem(P('p7'), { f1: { type: 'funnel', flipped: false } }, 'candy')).toMatchObject({ kind: 'impure', impurity: 'water' });
+  it('p7: clear sugar water is not pure water; evaporating it first leaves the village dry', () => {
+    expect(problem(P('p7'), { f1: { type: 'funnel', flipped: false } }, 'village')).toMatchObject({ kind: 'impure', impurity: 'sugar' });
     expect(problem(P('p7'), {}, 'village')).toMatchObject({ kind: 'impure', impurity: 'sugar' });
+    expect(problem(P('p7'), { i0: { type: 'pan', flipped: false }, f1: { type: 'still', flipped: true, temp: 100 } }, 'village')).toMatchObject({ kind: 'nothing' });
+  });
+  it('t1: filtering before sieving puts sand in the road gravel', () => {
+    expect(problem(P('t1'), { f1: { type: 'filter', flipped: true }, f2: { type: 'sieve', flipped: false }, i1: { type: 'pan', flipped: false } }, 'road')).toMatchObject({ impurity: 'sand' });
   });
   it('p8: filtering before dissolving keeps salt in the sand', () => {
     const r = runPuzzle(P('p8'), { f1: { type: 'magnet', flipped: false }, f2: { type: 'filter', flipped: true }, i2: { type: 'pan', flipped: false } });

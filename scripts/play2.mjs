@@ -13,18 +13,18 @@ fs.mkdirSync(outDir, { recursive: true });
 
 // intended solutions (socket → machine), mirrors tests/puzzles.test.ts solver results
 const SOL = {
-  p1: { f1: ['magnet', false] },
-  p2: { f1: ['magnet', true] },
+  p1: { f1: ['magnet', true] },
+  p2: { f1: ['magnet', false] },
   p3: { f1: ['filter', true], i1: ['pan', false] },
   p4: { f1: ['still', false, 100] },
   p5: { f1: ['filter', true], i1: ['pan', false], f2: ['still', false, 100] },
   p6: { f1: ['funnel', true] },
-  p7: { f1: ['still', false, 100] },
+  p7: { f1: ['still', true, 100] },
   p8: { f1: ['magnet', false], i1: ['tank', false], f2: ['filter', true], i2: ['pan', false] },
   p9: { f1: ['magnet', false], i1: ['tank', false], f2: ['filter', true], i2: ['pan', false] },
   p10: { f1: ['chroma', false] },
   p11: { f1: ['still', false, 78] },
-  t1: { f1: ['sieve', false], i1: ['pan', false] },
+  t1: { f1: ['sieve', false], f2: ['filter', true], i1: ['pan', false] },
   t2: { f1: ['funnel', false], f2: ['magnet', true] },
   t3: { f2: ['magnet', false] },
 };
@@ -46,6 +46,7 @@ const step = (page, ms) => page.evaluate((m) => window.advanceTime(m), ms);
 const state = (page) => page.evaluate(() => JSON.parse(window.render_game_to_text()));
 async function shot(page, name) {
   await step(page, 16);
+  await page.waitForTimeout(450); // let CSS pop-in animations (wall-clock) finish
   await page.screenshot({ path: path.join(outDir, `${name}.png`), timeout: 120000 });
   console.log('shot', name);
 }
@@ -110,7 +111,31 @@ if (scenario === 'shots') {
   await step(page, 300);
   await shot(page, 'v2-05b-scan-stamped');
   await page.click('#scan .close');
-  await placeAll(page, SOL.p1);
+  // mid-drag capture: the card follows the pointer and the socket glows
+  {
+    const box = await page.locator('.mcard[data-card="0"]').boundingBox();
+    const to = await page.evaluate(() => window.cf.screenOfSocket('f1'));
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(box.x + box.width / 2 + ((to.x - box.x - box.width / 2) * i) / 10, box.y + box.height / 2 + ((to.y - box.y - box.height / 2) * i) / 10);
+      await step(page, 16);
+    }
+    await shot(page, 'v2-01a-dragging');
+    await page.mouse.move(to.x, to.y);
+    await step(page, 16);
+    await page.mouse.up();
+    await step(page, 300);
+    await shot(page, 'v2-01c-placed-needs-flip');
+    await page.mouse.click(to.x, to.y);
+    await step(page, 200);
+    await shot(page, 'v2-01d-popover');
+    await page.click('#pop [data-flip]');
+    await step(page, 600);
+    await page.mouse.click(10, 300);
+    await step(page, 100);
+  }
+  await placeAll(page, {});
   await shot(page, 'v2-01b-placed');
   await page.click('#play');
   await step(page, 3800);

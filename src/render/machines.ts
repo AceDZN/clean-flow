@@ -401,7 +401,7 @@ export function buildSource(look: SourceLook, tint: string): NodeView {
 // ---------------- customers ----------------
 
 const AWNING: Record<CustomerLook, string> = {
-  foundry: '#c44b2f', builder: '#e0a43a', village: '#2f9a8e', bakery: '#e38d3a', clinic: '#2f8f56', soap: '#7fc6e8', candy: '#ff7fb6', print: '#3f62c4', perfume: '#9a7fe0', dye: '#1e9bd7', pickle: '#9bbf3a', fertilizer: '#c9b23a', lab: '#7a8a96',
+  foundry: '#c44b2f', builder: '#e0a43a', village: '#2f9a8e', bakery: '#e38d3a', clinic: '#2f8f56', soap: '#7fc6e8', candy: '#ff7fb6', print: '#3f62c4', perfume: '#9a7fe0', dye: '#1e9bd7', pickle: '#9bbf3a', fertilizer: '#c9b23a', lab: '#7a8a96', road: '#8a8f99',
 };
 
 export function buildCustomer(look: CustomerLook): NodeView {
@@ -518,6 +518,7 @@ export function buildCustomer(look: CustomerLook): NodeView {
       if (look === 'perfume') extra.add(mesh(new THREE.ConeGeometry(0.12, 0.3, 8), liquidMat('#b69cff', 0.8), 0.7, 0.15, 0.5));
       if (look === 'dye') extra.add(mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.3, 14), liquidMat('#1e9bd7', 0.9), 0.75, 0.15, 0.4));
       if (look === 'candy') extra.add(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6), MAT.white, 0.75, 0.3, 0.45), mesh(new THREE.TorusGeometry(0.14, 0.06, 8, 16), solidMat('#ff7fb6'), 0.75, 0.7, 0.45));
+      if (look === 'road') extra.add(mesh(new THREE.ConeGeometry(0.45, 0.4, 10), solidMat('#c8c0b0'), 0.7, 0.2, 0.45), mesh(new THREE.BoxGeometry(0.5, 0.06, 0.12), MAT.dark, -0.5, 0.04, 0.6));
       if (look === 'pickle') extra.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.45, 12), MAT.glass, 0.75, 0.22, 0.4), mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.4, 12), liquidMat('#d6e07a', 0.7), 0.75, 0.21, 0.4));
     }
   }

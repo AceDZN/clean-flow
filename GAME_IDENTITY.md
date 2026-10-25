@@ -1,41 +1,28 @@
-# Clean Flow — זרם נקי · game identity
+# Clean Flow — זרם נקי · game identity (v2)
 
 ## One line
 
-Mini Metro meets a chemistry plant: route glass pipes of mixed-up streams across a sunlit desert valley and drop brass separation machines in the right order, so every town gets exactly the pure stuff it wants — and you can watch every particle ride the pipes.
+A cozy-but-snappy 3D pipe puzzle: the glass pipes are already laid across a floating desert island; drag the right brass machine into each glowing socket so every town gets exactly the pure thing it ordered — then watch every particle ride the pipes.
 
 ## Core action (without setting or topic)
 
-Real-time-with-pause **network routing and machine building**. The player draws connections from outlets to machines and customers on a 3D hex valley, places a limited set of machines, then watches discrete packets flow, split, back up or get rejected, and edits the network until it runs cleanly. Decisions: *which* machine, *in what order*, *which outlet goes where*, *what to throw away*. State that changes: packets in pipes, machine queues, source backlog gauges, customer demand meters. Failure: a source overflows (flood) or dusk arrives with orders unfilled. Recovery: the network you built stays — tweak and rerun.
+**Slot-and-orient puzzles with a watchable result.** One verb: drag a card into a socket (tap to flip it). The decision is *which* machine, *where in the chain* (order), and *which way its two outputs face*. Press play for a short flow show; the world reacts. Instant retry keeps your machines. No timers, no floods, no camera to manage.
 
-This is not a courier loop, no avatar walks anything anywhere, and there is no answer-unlocks-action gate.
+## First 30 seconds (level 1)
 
-## First 60 seconds
-
-1. Camera swoops over a terraced sandstone valley at morning. An iron mine (מכרה) gushes a grey-and-tan stream into a waiting glass pipe stub; a foundry chimney and a builder's yard wait across the valley. Time is paused: "plan, then open the valves".
-2. Tap the mine → the **particle lens** dives into the stream: big tan sand grains and clumps of grey iron filings tumble past. Two kinds of units, in separate clumps. The player may stamp a tag: תערובת הטרוגנית ✓ (+bonus).
-3. Drag the magnet drum from the tray onto a terrace. Drag a pipe mine → drum. Drag the drum's iron outlet → foundry, rest outlet → builder. ▶.
-4. Particles flow; the drum spins; grey spheres jump to one pipe, tan grains to the other; the foundry meter fills with a clang and sparks. The pure spring next to the village needs **no** machine — pipe it straight in.
+1. The map: a winding desert path, level 1 pulsing. Tap it.
+2. An island: an iron mine on the right pours grey spiky iron and tan sand into a glass pipe; a glowing teal socket waits at the fork; a foundry ("רוצה: ברזל") and a builder ("רוצה: חול") wait on the left. A hand shows the drag.
+3. Drag the magnet drum into the socket — it pops in with a clunk; little tags appear on the branches: "נמשך למגנט" up to the foundry, "השאר" down to the builder.
+4. ▶ — iron hops into the upper pipe, sand rolls down, the foundry cheers 😄, both order bars fill, stars.
 
 ## Visual thesis
 
-Desert-teal and copper. Warm sandstone terraces stepping down to a turquoise reservoir, salt flats glittering white, date palms, long low sun. Machines are chunky **brass-and-glass** apparatus — magnet drum, filter press, copper still with coil, steaming evaporation pan, chromatography tower with paper ladders — they animate constantly (spin, drip, bubble, steam). Pipes are thick clear glass tubes; inside, particles are instanced shapes coded by **shape and colour** (never colour alone): water = small rounded triad, salt = white cube, sand = tan faceted rock, iron = dark metallic spiky ball, oil = amber droplet/lozenge, sugar = pink hexagon, alcohol = lavender rod, pigments = coloured stars/diamonds.
+Mockups in `docs/visual-targets/v2/`. Warm peach-to-coral sky; a floating chunk of layered orange sandstone; thick clear glass pipes with brass couplers on wooden posts; chunky brass-and-glass machines (Tripo models); particles coded by shape and colour (iron = dark spiky ball, sand = tan faceted rock, salt = white cube, water = small blue triad, oil = amber drop, sugar = pink hexagon, pigments = coloured star/diamond…). Cream parchment UI with brass borders, round dark-teal buttons, a wooden tray of 3D machine cards, a big green ▶ pill. Fixed three-quarter camera; on phones the camera turns so the board runs up the screen.
 
-Camera: tilted strategic three-quarter view (~50°), orbit and zoom, day→dusk light cycle across each week. Not toy-industrial, no robots, no courier avatar. Optional rigged valley engineer mascot near the control hut who cheers or facepalms.
+## Feedback & tone
 
-## UI / HUD (Hebrew, RTL)
+Playful and quick. Mistakes are funny and visible — the bakery spits out salty water with a comic bubble "פויה! יש מים במלח" — followed by a short "כמעט!" card with a one-line worked explanation and "נסו שוב". Success: emotes, sparkles, confetti, stars, the engineer cheers.
 
-- Top right: week title (שבוע 1 · שבוע הברזל), sun-dial clock of the day.
-- Top left: ▶/⏸, ×2 speed, mute, reduced motion, menu.
-- Bottom: machine tray — chunky cards with machine icon, Hebrew name and count left; pipe budget meter.
-- In world: floating demand meters over customers (product icon + fill), backlog gauges over sources, small outlet labels on machines (e.g. "ברזל" / "שאר"), rejection bubbles ("פויה! יש חול במלח").
-- Particle lens: circular inset panel with live 3D particles, a legend of unit shapes, and the tag stamp row (יסוד / תרכובת / תערובת הומוגנית / תערובת הטרוגנית).
-- Fonts: Rubik (bundled). Formulas and numbers in LTR spans: H₂O, NaCl, 78 °C.
+## What it is not
 
-## Sound
-
-Glassy pipe gurgles, brass clanks, magnet hum, still bubbles, pan hiss, customer chimes on accepted deliveries, a comic "ptui" on rejections, low siren as a source backlog rises.
-
-## Tone
-
-Playful, confident, a bit cheeky. Mistakes are funny and visible (salt sails straight through the filter, the bakery spits out sandy salt), never a red "wrong" popup.
+Not a free-form network builder (v1), not a courier game, no avatar to steer, no typed answers, no timers.

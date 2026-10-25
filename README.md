@@ -1,10 +1,12 @@
 # Clean Flow — זרם נקי
 
-A 3D browser game for Hebrew-speaking grade-8 science students, built on the Israeli curriculum as published in [Workbook](https://science.workbook.co.il/grade-8) (chapter 3: compounds, mixtures and separation).
+A 3D browser puzzle game for Hebrew-speaking grade-8 science students, built on the Israeli curriculum as published in [Workbook](https://science.workbook.co.il/grade-8) (chapter 3: compounds, mixtures and separation).
 
-**Mini Metro meets a chemistry plant.** Mixed-up streams pour out of mines, springs, marshes and spills in a sunlit desert valley. Towns and workshops want pure stuff. Lay glass pipes, drop brass separation machines in the right order, and watch every particle ride the pipes — when you get it wrong you *see* the salt sail straight through your filter and the bakery spit out sandy salt.
+**Mixed-up streams pour out of mines, marshes and spills. Every town wants exactly one pure thing.** The glass pipes are already laid; drag the right brass machine into each glowing socket, flip it so each product goes the right way, and press ▶. Particles you can see ride the pipes — iron jumps to the magnet, sand stays on the filter, steam leaves the pan — and customers cheer or spit out the wrong stuff.
 
-![Week 4 mid-play with the particle lens](docs/captures/actual-02-core-mid-play.png)
+![Level 1 mid-flow](docs/captures/v2/actual-02-flowing.png)
+
+This is **v2**, a redesign after the first playtest ("barely understood what to do… boring… too hard because of the flow and controls"). See [docs/REDESIGN.md](docs/REDESIGN.md). v1 (free-form network building) is retired; its captures stay in [docs/captures/](docs/captures/) for history.
 
 ## Play
 
@@ -26,42 +28,30 @@ npm run build
 npm run preview
 ```
 
-(http://localhost:4195/). The build is fully static and offline: fonts and models are bundled, nothing is fetched at runtime, no backend, accounts, analytics or API keys.
+(http://localhost:4195/). The build is static and offline: fonts and Tripo models are bundled; no backend, accounts, analytics or API keys.
 
-## Controls
+## How to play
 
 | Action | Mouse / touch | Keyboard |
 |---|---|---|
-| Place a machine | Drag a card from the tray onto a free hexagon (or tap the card, then tap a hexagon) | `1`–`8` selects a tray card |
-| Draw a pipe | Drag from an outlet ring (source or machine) to a machine, customer or the waste pond — or tap the outlet, then tap the target | |
-| Look inside a stream (particle lens) | Tap a source or a pipe | |
-| Classify a stream | Stamp it in the lens: יסוד / תרכובת / תערובת הומוגנית / תערובת הטרוגנית | |
-| Machine settings / move / remove | Tap the machine (still: 78 °C / 100 °C) | `Delete` removes the selected pipe or machine |
-| Open the valves / pause | ▶ button | `Space` |
-| Speed ×2 | ×2 button | `F` |
-| Rerun (network kept) | ↻ button | `R` |
-| Hint (weeks 1–5) | 💡 button | `H` |
-| Camera | Drag ground: pan · right-drag / two fingers: rotate · wheel / pinch: zoom · ⌂ button: whole valley | arrows/WASD pan, `C` home |
+| Choose a level | Tap a badge on the map | |
+| Place a machine | Drag a card from the tray onto a glowing socket — or tap the card, then tap the socket | `1`–`6` selects a card |
+| Which socket fits | **Y** cards (two outlets: magnet, filter, funnel, still, chromatography, sieve) go in hexagonal fork sockets; **●** cards (evaporation pan, dissolving tank) go in round sockets. Empty round socket = plain pipe; empty fork = the stream splits in half | |
+| Flip outlets / thermometer / remove | Tap the placed machine | |
+| Look inside a stream (scan) | Tap the source or its 🔍 sign; stamp it יסוד / תרכובת / תערובת הומוגנית / הטרוגנית | `Esc` closes |
+| Run | ▶ הפעל זרימה (during the run the button is ×2 speed) | `Space` / `Enter` |
+| Hint / start over / map | 💡 / ↻ / ☰ (top-left) | `H` / `R` |
 
-Mute, reduced motion and the full control list are in the menu (☰) and on the title screen.
+Stars: ★ solved · ★ solved without a failed run · ★ every source scanned and stamped correctly on the first try.
 
-## What's in the slice (implemented)
+## What's in it
 
-- **Six weeks** (6–10 minutes total): Iron Week (magnet; a spring that needs nothing), Salt Week (filter, evaporation pan, still; a new source appears mid-week), Oil Week (separating funnel; clear sugar water that isn't water), The Classic (salt + sand + iron: magnet → dissolve → filter → evaporate), Ink & Spirits (chromatography; distillation at 78 °C vs 100 °C; air as a lens-only classification trap) and **Flood Day**, a no-hint transfer week with four never-seen streams (copper-sulfate water + gravel, vinegar + oil, iron + sulfur powder, iron sulfide).
-- Authoritative pure-TypeScript simulation (`src/sim/`): substances with real properties, classification derived from particle data, 8 machines as mass-conserving functions, packet flow through pipes with queues, stalls, backlogs, floods, customer purity checks.
-- 3D valley (Three.js): terraced sandstone hex board inside a canyon, lake, palms, day→dusk light per week, glass pipes with instanced particles coded by shape *and* colour, animated machines, steam/sparks/particle bursts, camera shake, a rigged Tripo engineer mascot who cheers or facepalms.
-- Particle lens: a live ball-and-stick 3D view of any stream (ions when dissolved, crystals/grains when solid, layers when immiscible), legend with formulas and states, class stamps with first-try bonus.
-- Week 1 coach marks, progressive hints (logged), failure screens with a short worked explanation (none in the transfer week), stars (done / all stamps right first try / zero rejections within the machine par), week-end upgrade pick (+5 pipe or bigger reservoirs).
-- Hebrew RTL UI (bundled Rubik), formulas and numbers isolated LTR, never colour-only feedback, mute / pause / reduced motion, keyboard + touch, DPR capped at 2, pause on focus loss, resize, WebGL context-loss message.
-- Anonymous local learning log (localStorage `cleanflow.log.v1`).
-- Test hooks: `window.render_game_to_text()` and deterministic `window.advanceTime(ms)`; read-only locators in `window.cf`.
-
-## Planned / not in this slice
-
-- A persistent valley that grows across weeks (each week is currently its own valley layout).
-- Splitter junctions and throughput upgrades (faster still, pipe bridges).
-- Tripo idle/facepalm animation clips (idle and facepalm are procedural poses on the rigged model).
-- More Tripo machines (dissolving tank, funnel, chromatography tower, sieve, sources are procedural).
+- **14 puzzles in 6 chapters**: magnet; filter + evaporation + distillation; layers (separating funnel) and "clear ≠ pure"; the salt-sand-iron classic (magnet → dissolve → filter → evaporate, where the order really matters); chromatography and ethanol distillation (78 °C vs 100 °C); and **יום השיטפון**, three no-hint transfer puzzles with new streams (copper-sulfate water + gravel, vinegar + oil, iron + sulfur, iron sulfide).
+- Pure TypeScript rules (`src/sim/` chemistry, `src/puzzle/engine.ts` puzzle graph) with a brute-force solver test: every level has exactly one intended solution (one has a second, physically valid one), empty sockets never win, the classic mistakes fail as designed, and no single machine type used everywhere can clear the transfer chapter.
+- 3D (Three.js): floating layered-sandstone islands, thick glass pipes with brass couplers, particles coded by shape and colour, 14 Tripo models (machines, mine, reservoir, foundry, bakery, workshop, rigged engineer with idle / cheer / frustrated animations), scan magnifier with a live 3D particle view, 3D level map.
+- Hebrew RTL UI (bundled Rubik), formulas in LTR spans, colour never the only signal, phone layout (the camera turns so the board runs up the screen), reduced-motion and mute toggles.
+- Anonymous local learning log in `localStorage` (`cleanflow.log.v1`): placements, flips, runs, stamps, hints, wins, failures, first unaided decisions. Progress in `cleanflow.v2.progress`.
+- Test hooks: `window.render_game_to_text()`, deterministic `window.advanceTime(ms)`, read-only locators in `window.cf`.
 
 ## Tests
 
@@ -69,18 +59,16 @@ Mute, reduced motion and the full control list are in the menu (☰) and on the 
 npm test
 ```
 
-67 unit tests: classification, mass conservation for every machine, station physics, customer judging, every level's intended network wins in the full simulation, wrong orders fail with the advertised rejection, the transfer week rejects every constant strategy (every single machine type and every two-machine chain applied to all streams). Headless playthroughs with real mouse input:
-
 ```bash
-node scripts/playtest.mjs campaign
+node scripts/play2.mjs campaign
 ```
 
-(needs the dev server; also `week1`, `week1-fail`, `mobile`, `review`). See [PLAYTEST.md](PLAYTEST.md).
+The second command (needs the dev server) solves all 14 puzzles through the UI with real mouse input; also `shots`, `fail`, `mobile`. See [PLAYTEST.md](PLAYTEST.md).
 
 ## Deploy to Vercel
 
-Static Vite app with a relative base. In Vercel: import `AceDZN/clean-flow`, framework preset **Vite**, build command `npm run build`, output directory `dist`. `vercel.json` already sets these. No environment variables.
+Static Vite app with a relative base: import `AceDZN/clean-flow`, framework **Vite**, build `npm run build`, output `dist` (`vercel.json` sets these). No environment variables.
 
 ## Docs
 
-[GAME_IDENTITY.md](GAME_IDENTITY.md) · [CURRICULUM.md](CURRICULUM.md) · [ASSETS.md](ASSETS.md) · [PLAYTEST.md](PLAYTEST.md) · [progress.md](progress.md) · [docs/VISUAL_REVIEW.md](docs/VISUAL_REVIEW.md) · mockups in [docs/visual-targets/](docs/visual-targets/) · real captures in [docs/captures/](docs/captures/) · brief in [docs/handoff/](docs/handoff/)
+[docs/REDESIGN.md](docs/REDESIGN.md) · [GAME_IDENTITY.md](GAME_IDENTITY.md) · [CURRICULUM.md](CURRICULUM.md) · [ASSETS.md](ASSETS.md) · [PLAYTEST.md](PLAYTEST.md) · [progress.md](progress.md) · [docs/VISUAL_REVIEW.md](docs/VISUAL_REVIEW.md) · mockups [v2](docs/visual-targets/v2/) · captures [v2](docs/captures/v2/) · brief [docs/handoff/](docs/handoff/)

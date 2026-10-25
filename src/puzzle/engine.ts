@@ -195,7 +195,7 @@ export function runPuzzle(pz: Puzzle, placements: Placements): RunResult {
     }
     const res = runStation(pl.type, feed, { stillTemp: pl.temp ?? 100 });
     const only = units(feed);
-    if (only.length === 1 && pl.type !== 'tank') res.note = 'pure-' + (Object.keys(sub(only[0]).atoms).length > 1 ? 'compound' : 'element');
+    if (only.length === 1 && shapeFor(pl.type) === 'fork') res.note = 'pure-' + (Object.keys(sub(only[0]).atoms).length > 1 ? 'compound' : 'element');
     if (res.note) notes[n.id] = res.note;
     if (total(res.vapor) > EPS) vapor[n.id] = res.vapor;
     if (n.shape === 'inline') {

@@ -5,7 +5,7 @@ import type { StationType } from './stations';
 import type { UnitId } from './substances';
 
 export type SourceLook = 'mine' | 'spring' | 'marsh' | 'pond' | 'spill' | 'well' | 'vat' | 'ink' | 'intake' | 'creek' | 'crate' | 'blackmine';
-export type CustomerLook = 'foundry' | 'builder' | 'village' | 'bakery' | 'clinic' | 'soap' | 'candy' | 'print' | 'perfume' | 'dye' | 'pickle' | 'fertilizer' | 'lab';
+export type CustomerLook = 'foundry' | 'builder' | 'village' | 'bakery' | 'clinic' | 'soap' | 'candy' | 'print' | 'perfume' | 'dye' | 'pickle' | 'fertilizer' | 'lab' | 'road';
 
 export interface NodeSpec {
   id: string;

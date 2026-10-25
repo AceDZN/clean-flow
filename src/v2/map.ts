@@ -127,7 +127,7 @@ export class MapScene {
         mat.color.set('#e0b24c');
         mat.emissive.set('#000');
       } else if (!g.unlocked(i)) {
-        mat.color.set('#9aa0a6');
+        mat.color.set('#a8987a');
         mat.emissive.set('#000');
         mat.metalness = 0.4;
       }

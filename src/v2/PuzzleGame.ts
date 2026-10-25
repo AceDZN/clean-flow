@@ -27,10 +27,27 @@ const MACHINE_MODEL: Record<StationType, ModelName> = {
 const MACHINE_WIDTH: Record<StationType, number> = { magnet: 1.75, filter: 1.25, still: 1.9, pan: 1.75, tank: 1.6, funnel: 1.0, chroma: 1.0, sieve: 1.4 };
 const SOURCE_TINT: Record<string, string> = { spring: '#4fc3e8', pond: '#9fe3ff', marsh: '#a59a72', well: '#ffc1dc', creek: '#3aa7e0', spill: '#f2b63a', ink: '#3f9a52', vat: '#c9b6ff', mine: '#59606b', blackmine: '#2b2a33', crate: '#d6a84c' };
 
-const GLASS = new THREE.MeshPhysicalMaterial({ color: '#f2fdff', metalness: 0, roughness: 0.04, transparent: true, opacity: 0.2, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 2.6, side: THREE.DoubleSide });
+const GLASS = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  uniforms: { tint: { value: new THREE.Color('#dff7ff') } },
+  vertexShader: `varying vec3 vN; varying vec3 vV; varying vec3 vW;
+    void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `uniform vec3 tint; varying vec3 vN; varying vec3 vV; varying vec3 vW;
+    void main(){ vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;
+      float f = 1.0 - abs(dot(n, normalize(vV)));
+      float rim = pow(f, 2.2);
+      float spec = pow(max(0.0, dot(reflect(-normalize(vec3(0.4, 1.0, 0.5)), n), normalize(vV))), 40.0);
+      float a = 0.06 + rim * 0.55 + spec * 0.7;
+      vec3 c = mix(tint, vec3(1.0), clamp(rim * 0.6 + spec, 0.0, 1.0));
+      gl_FragColor = vec4(c, a);
+      #include <colorspace_fragment>
+    }`,
+});
 const HOUSE_TINT: Partial<Record<string, string>> = { clinic: '#e6fff0', soap: '#dcefff', candy: '#ffe1ef', print: '#e3e9ff', perfume: '#eee2ff', dye: '#d6f0ff', pickle: '#efffd2', fertilizer: '#fff3c6', lab: '#e9eef2', village: '#fff6ea' };
-const STEP = 1.6; // seconds per stage of the flow show (speed ×1)
-const TRAVEL = 1.45; // seconds for a packet to cross a pipe
+const STEP = 1.3; // seconds per stage of the flow show (speed ×1)
+const TRAVEL = 1.25; // seconds for a packet to cross a pipe
 const SPAWN = 0.24; // seconds between packets in a stream
 const PKEY = 'cleanflow.v2.progress';
 
@@ -118,6 +135,9 @@ export class PuzzleGame {
   run: RunState | null = null;
   lastResult: RunResult | null = null;
   failedRuns = 0;
+  goalOpen = true;
+  runsThisLevel = 0;
+  tutStep = 0;
   hintsUsed = 0;
   hintIdx = 0;
   scans: Record<string, { first?: boolean; tag?: MatterClass }> = {};
@@ -231,6 +251,9 @@ export class PuzzleGame {
     this.levelRoot.visible = true;
     this.placements = {};
     this.failedRuns = 0;
+    this.runsThisLevel = 0;
+    this.tutStep = this.pz.tutorial ? 1 : 0;
+    this.goalOpen = true;
     this.hintsUsed = 0;
     this.hintIdx = 0;
     this.scans = {};
@@ -240,7 +263,7 @@ export class PuzzleGame {
     this.phase = 'build';
     this.buildLevel();
     this.buildHud();
-    this.say(this.pz.intro, 6);
+    this.updateGoal();
     logEvent({ level: this.pz.id, action: 'run', values: { start: true }, hintsUsed: 0, run: 0 });
     if (this.pz.tutorial) window.setTimeout(() => this.tutorialHand(), 900);
   }
@@ -273,7 +296,7 @@ export class PuzzleGame {
       minZ = Math.min(minZ, p.z);
       maxZ = Math.max(maxZ, p.z);
     }
-    const island = buildIsland(minX - 2.4, maxX + 2.6, minZ - 2.0, maxZ + 2.0, pz.index * 13 + 5);
+    const island = buildIsland(minX - 2.0, maxX + 2.2, minZ - 1.7, maxZ + 1.7, pz.index * 13 + 5);
     this.levelRoot.add(island.group);
     // a couple of palms in empty spots
     const palmPts = [new THREE.Vector3(maxX + 1.3, 0.1, minZ - 1.0), new THREE.Vector3((minX + maxX) / 2 + 1.2, 0.1, minZ - 1.3), new THREE.Vector3(minX - 1.2, 0.1, maxZ + 0.6)];
@@ -316,7 +339,7 @@ export class PuzzleGame {
     });
     this.makeLabels();
     this.placeMascot(maxX + 1.6, maxZ + 1.0);
-    this.frameCamera(minX - 2.6, maxX + 2.8, minZ - 2.2, maxZ + 2.2);
+    this.frameCamera(minX - 2.1, maxX + 2.3, minZ - 1.8, maxZ + 1.8);
   }
 
   outPoint(id: string, outlet: 'out' | 'a' | 'b'): THREE.Vector3 {
@@ -534,7 +557,25 @@ export class PuzzleGame {
     this.afterBuildChange();
   }
 
+  /** the level goal stays reachable; the week-1 tutorial adds one step at a time */
+  updateGoal(): void {
+    const g = document.getElementById('goal');
+    if (!g) return;
+    let tut = '';
+    if (this.pz.tutorial) {
+      const pl = this.placements.f1;
+      if (!pl) this.tutStep = 1;
+      else if (pl.type === 'magnet' && !pl.flipped) this.tutStep = 2;
+      else if (pl.type === 'magnet' && pl.flipped) this.tutStep = 3;
+      tut = ({ 1: '👆 גררו את התוף המגנטי מהמגש לשקע הזוהר.', 2: '👀 תסתכלו על התוויות על הצינורות: "נמשך למגנט" הולך עכשיו לקבלן! הקישו על התוף ובחרו ⇅ הפוך יציאות.', 3: '✅ עכשיו הברזל יורד לבית היציקה. ▶ הפעילו זרימה!' } as Record<number, string>)[this.tutStep] ?? '';
+    }
+    g.classList.toggle('open', this.goalOpen || !!tut);
+    g.innerHTML = this.goalOpen || tut ? `<span class="tgt">🎯</span><span class="txt">${this.pz.intro}${tut ? `<b class="tut">${tut}</b>` : ''}</span>` : '<span class="tgt">🎯</span><span class="txt">המטרה</span>';
+  }
+
   afterBuildChange(): void {
+    if (this.goalOpen && !this.pz.tutorial && Object.keys(this.placements).length) this.goalOpen = false;
+    this.updateGoal();
     if (this.phase === 'done') this.backToBuild();
     this.refreshTray();
     this.refreshBranchTags();
@@ -555,12 +596,17 @@ export class PuzzleGame {
       <div id="plaque" class="plaque"><div class="name">${pz.subtitle.split('·')[0].trim()} · שלב ${f(pz.index)}</div><div class="title">${pz.he}</div><div class="stars">${[0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('')}</div></div>
       <div id="tray" role="toolbar" aria-label="מכונות"></div>
       <button id="play" aria-label="הפעל זרימה"><span class="ico">▶</span><span class="txt">הפעל זרימה</span></button>
+      <button id="goal" class="goal open" aria-live="polite"></button>
       <div id="say" class="hidden"></div>
       <div id="toast" class="hidden"></div>`;
     document.getElementById('b-map')!.addEventListener('click', () => this.showMap());
     document.getElementById('b-hint')?.addEventListener('click', () => this.showHint());
     document.getElementById('b-reset')!.addEventListener('click', () => this.resetLevel());
     document.getElementById('play')!.addEventListener('click', () => this.onPlay());
+    document.getElementById('goal')!.addEventListener('click', () => {
+      this.goalOpen = !this.goalOpen;
+      this.updateGoal();
+    });
     this.refreshTray();
   }
 
@@ -574,7 +620,7 @@ export class PuzzleGame {
         const shape = shapeFor(t);
         return `<button class="mcard ${free ? '' : 'used'} ${this.selectedCard === i ? 'sel' : ''} ${this.pz.newMachines.includes(t) ? 'new' : ''}" data-card="${i}" aria-label="${def.he}">
           ${this.icons[t] ? `<img alt="" src="${this.icons[t]}">` : ''}
-          <span class="nm">${def.he}</span>
+          <span class="nm">${def.he}</span><span class="pr">${def.propertyHe}</span>
           <span class="shape ${shape}" title="${shape === 'fork' ? 'לשקע מתפצל' : 'לשקע עגול'}">${shape === 'fork' ? 'Y' : '●'}</span>
           ${this.pz.newMachines.includes(t) ? '<span class="newb">חדש</span>' : ''}</button>`;
       })
@@ -774,20 +820,26 @@ export class PuzzleGame {
     ghost.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
-        const mats = Array.isArray(m.material) ? m.material : [m.material];
-        m.material = mats.map((mm) => {
-          const c = (mm as THREE.Material).clone();
+        const ghostMat = (mm: THREE.Material) => {
+          const c = mm.clone();
           c.transparent = true;
-          c.opacity = 0.7;
+          c.opacity = 0.75;
           c.depthWrite = false;
           return c;
-        });
+        };
+        m.material = Array.isArray(m.material) ? m.material.map(ghostMat) : ghostMat(m.material);
         m.castShadow = false;
       }
     });
     ghost.visible = false;
     this.scene.add(ghost);
     this.drag = { card, fromSocket, ghost, moved: false, x, y };
+    // a 2D copy of the card follows the finger (works even where the 3D ghost is hidden by the tray)
+    document.getElementById('dragcard')?.remove();
+    const dc = el('div', { id: 'dragcard' }, this.icons[type] ? `<img alt="" src="${this.icons[type]}">` : STATIONS[type].heShort);
+    dc.style.left = `${x}px`;
+    dc.style.top = `${y}px`;
+    this.ui.append(dc);
     this.openPopover(null);
     this.highlightSockets(type);
   }
@@ -814,9 +866,12 @@ export class PuzzleGame {
     if (hit.socket) {
       if (this.selectedCard !== null && this.phase !== 'run') {
         const c = this.selectedCard;
-        this.selectedCard = null;
-        this.highlightSockets(null);
-        if (this.place(hit.socket, c)) this.openPopover(null);
+        if (this.place(hit.socket, c)) {
+          this.selectedCard = null;
+          this.highlightSockets(null);
+          this.openPopover(null);
+          this.refreshTray();
+        }
         return;
       }
       const pl = this.placements[hit.socket];
@@ -825,7 +880,7 @@ export class PuzzleGame {
         this.drag = { card: pl.card, fromSocket: hit.socket, ghost: new THREE.Group(), moved: false, x: e.clientX, y: e.clientY };
         return;
       }
-      this.say(this.socketViews.get(hit.socket)!.node.shape === 'fork' ? 'שקע מתפצל: גררו לכאן מכונה עם שתי יציאות (Y).' : 'שקע עגול: גררו לכאן מכונה עם יציאה אחת (●) — או השאירו אותו ריק.', 3);
+      this.say(this.socketViews.get(hit.socket)!.node.shape === 'fork' ? 'שקע מתפצל: מתאים למכונה עם שתי יציאות (Y). אם תשאירו אותו ריק, הזרם יתחלק חצי-חצי לשני הכיוונים.' : 'שקע עגול: מתאים למכונה עם יציאה אחת (●). ריק — הזרם פשוט עובר.', 4);
       return;
     }
     if (hit.node) {
@@ -875,8 +930,16 @@ export class PuzzleGame {
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8);
     const p = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
     dd.ghost.visible = !!p;
-    if (near && near.d < 90) dd.ghost.position.copy(this.socketViews.get(near.id)!.group.position).add(new THREE.Vector3(0, 0.45, 0));
+    const snapped = near && near.d < 90 ? near.id : null;
+    if (snapped) dd.ghost.position.copy(this.socketViews.get(snapped)!.group.position).add(new THREE.Vector3(0, 0.45, 0));
     else if (p) dd.ghost.position.copy(p);
+    for (const [sid, sv] of this.socketViews) sv.ring.userData.snap = sid === snapped ? 1 : 0;
+    const dc = document.getElementById('dragcard');
+    if (dc) {
+      dc.style.left = `${e.clientX}px`;
+      dc.style.top = `${e.clientY}px`;
+      dc.classList.toggle('snap', !!snapped);
+    }
   }
 
   private pointerUp(e: PointerEvent): void {
@@ -884,6 +947,8 @@ export class PuzzleGame {
     if (!d) return;
     this.drag = null;
     this.scene.remove(d.ghost);
+    document.getElementById('dragcard')?.remove();
+    for (const sv of this.socketViews.values()) sv.ring.userData.snap = 0;
     this.highlightSockets(null);
     if (!d.moved) {
       if (d.fromSocket && this.placements[d.fromSocket]) {
@@ -953,7 +1018,7 @@ export class PuzzleGame {
         <button class="close rbtn" aria-label="סגירה">✕</button>
       </div>
       <div class="scan-panel">
-        <div class="legend">${legendHtml(n.packet)}</div>
+        <div class="legend">${legendHtml(n.packet, true)}</div>
         <div class="dist">${done ? distributionHe(n.packet) : 'כמה סוגי חלקיקים יש כאן? הם מפוזרים באחידות, או בגושים ושכבות?'}</div>
         <div class="seals">${order.map((c) => `<button class="seal ${c} ${done === c ? 'right' : ''}" data-tag="${c}">${CLASS_ICON[c]}<span>${CLASS_HE[c]}</span></button>`).join('')}</div>
         <div class="note" aria-live="polite">${done ? `✓ ${CLASS_HE[done]}` : ''}</div>
@@ -966,6 +1031,7 @@ export class PuzzleGame {
     dim.style.maskImage = mask;
     dim.style.webkitMaskImage = mask;
     document.querySelectorAll('.hand').forEach((h) => h.remove());
+    document.body.classList.add('scanning');
     ov.querySelector('.close')!.addEventListener('click', () => this.closeScan());
     ov.querySelector('.dim')!.addEventListener('click', () => this.closeScan());
     ov.querySelectorAll<HTMLButtonElement>('[data-tag]').forEach((b) => b.addEventListener('click', () => this.stamp(srcId, b.dataset.tag as MatterClass, ov)));
@@ -1001,6 +1067,7 @@ export class PuzzleGame {
   }
 
   closeScan(): void {
+    document.body.classList.remove('scanning');
     document.getElementById('scan')?.remove();
     this.scanSource = null;
   }
@@ -1011,7 +1078,7 @@ export class PuzzleGame {
     audio.unlock();
     if (this.screen !== 'level') return;
     if (this.phase === 'run') {
-      this.run!.speed = this.run!.speed > 1 ? 1 : 2.5;
+      this.run!.speed = this.run!.speed > 1 ? 1 : 2;
       document.getElementById('play')!.classList.toggle('fast', this.run!.speed > 1);
       return;
     }
@@ -1039,13 +1106,16 @@ export class PuzzleGame {
       if (n.kind === 'socket') socketStart[n.id] = (d - 1) * STEP + TRAVEL;
       if (n.kind === 'customer' || n.kind === 'drain') arrival[n.id] = (d - 1) * STEP + TRAVEL;
     }
-    const end = Math.max(...Object.values(arrival)) + 2.8;
-    this.run = { result, t: 0, speed: 1, pipeStart, socketStart, arrival, end, fired: new Set() };
+    const end = Math.max(...Object.values(arrival)) + 2.1;
+    // a retry plays at double speed: the player already knows the show
+    const speed = this.runsThisLevel++ > 0 ? 2 : 1;
+    this.run = { result, t: 0, speed, pipeStart, socketStart, arrival, end, fired: new Set() };
     this.phase = 'run';
     const play = document.getElementById('play')!;
     play.classList.add('running');
     play.querySelector('.txt')!.textContent = '';
     play.querySelector('.ico')!.innerHTML = '<b>x2</b>';
+    play.classList.toggle('fast', speed > 1);
     for (const lab of this.labels.values()) lab.classList.remove('happy', 'sad');
     audio.play('whoosh');
     logEvent({ level: this.pz.id, action: 'run', values: { placements }, outcome: result.solved ? 'solved' : 'failed', hintsUsed: this.hintsUsed, run: this.failedRuns });
@@ -1123,7 +1193,7 @@ export class PuzzleGame {
         this.fx.burst(bad.comp, door, 18, 1.1, 0.8);
         this.fx.dust(door, '#f0dcb4', 8);
         this.bubble(rejectionHe(n as unknown as Parameters<typeof rejectionHe>[0], bad.verdict), above, 'bad', 3.4);
-      } else this.bubble(`איפה ה${n.wantHe}?`, above, 'bad', 3.4);
+      } else this.bubble(`חסר לי: ${n.wantHe}!`, above, 'bad', 3.4);
       v.group.userData.shake = 1;
       this.mascotPlay('frustrated_01');
     }
@@ -1146,6 +1216,10 @@ export class PuzzleGame {
     this.phase = 'build';
     this.run = null;
     this.closeCard();
+    for (const b of this.bubbles) b.el.remove();
+    this.bubbles = [];
+    for (const sv of this.socketViews.values()) sv.ring.userData.bad = 0;
+    this.highlightSockets(null);
     for (const lab of this.labels.values()) {
       lab.classList.remove('happy', 'sad');
       const bar = lab.querySelector('.bar > i') as HTMLElement | null;
@@ -1197,27 +1271,46 @@ export class PuzzleGame {
     );
   }
 
+  /** one honest line about what a customer got (grammar-safe: no "ל"/"ב" glued to names) */
+  customerLine(c: RunResult['customers'][number]): string {
+    const n = this.pz.nodes.find((x) => x.id === c.id) as PCustomer;
+    const want = sub(n.required[0]).he;
+    const p = c.problem;
+    if (!p || p.kind === 'nothing') return `<b>${n.he}:</b> לא קיבלו ${n.wantHe}`;
+    if (p.kind === 'missing') return `<b>${n.he}:</b> קיבלו ${p.impurity ? sub(p.impurity).he : 'משהו אחר'} במקום ${want}`;
+    return `<b>${n.he}:</b> פויה! יש ${sub(p.impurity!).he} ב${want}`;
+  }
+
   lose(res: RunResult): void {
     this.failedRuns++;
     audio.play('fail');
-    const bad = res.customers.find((c) => !c.happy)!;
+    const unhappy = res.customers.filter((c) => !c.happy);
+    const bad = unhappy[0];
     const n = this.pz.nodes.find((x) => x.id === bad.id) as PCustomer;
-    let why = '';
     const want = n.required[0];
+    // root cause first: a placed machine that did nothing useful (dry filter, magnet on a compound, wet magnet…)
+    const ROOT = ['dry-filter', 'pure-compound', 'pure-element', 'nothing-magnetic', 'wet-magnet', 'one-layer', 'nothing-boils', 'nothing-evaporates', 'all-passed', 'no-solvent'];
+    const root = Object.entries(res.notes).find(([sid, note]) => this.placements[sid] && ROOT.includes(note));
+    let cause = '';
+    if (root) {
+      const [sid, note] = root;
+      cause = `<div class="cause">🔧 <b>${STATIONS[this.placements[sid].type].he}:</b> ${NOTE_HE[note] ?? note}</div>`;
+      this.shakeSocket(sid);
+      this.socketViews.get(sid)!.ring.userData.bad = 1;
+    }
+    let why = '';
     if (bad.problem?.kind === 'nothing') {
       const pan = Object.entries(this.placements).find(([sid, p]) => p.type === 'pan' && res.vapor[sid] && total(res.flows[this.pz.pipes.findIndex((pp) => pp.from === sid)] ?? {}) < 1e-6);
-      why = pan ? 'אגן האידוי שלח את כל הנוזל לאוויר כאדים — לא נשאר כלום ללקוח.' : `לא הגיע ל${n.he} שום ${n.wantHe}. בדקו לאן כל יציאה הולכת.`;
+      why = pan ? 'אגן האידוי שלח את כל הנוזל לאוויר כאדים — לא נשאר כלום ללקוח.' : 'בדקו לאן כל יציאה הולכת — ושקע מתפצל ריק מחלק את הזרם לשניים.';
     } else if (bad.problem?.kind === 'missing') {
-      why = `הגיע ${bad.problem.impurity ? sub(bad.problem.impurity).he : 'משהו אחר'} במקום ${n.wantHe}. אולי המכונה הפוכה? הקישו עליה ו"הפכו יציאות".`;
+      why = 'אולי המכונה הפוכה? הקישו עליה ו"הפכו יציאות" — ותסתכלו על התוויות על הצינורות.';
     } else if (bad.problem) {
-      why = this.pz.noHints ? `ב${n.wantHe} הגיע גם ${sub(bad.problem.impurity!).he}. איזו תכונה שונה ביניהם?` : workedExplanation(want, bad.problem.impurity, bad.problem.reason);
+      why = this.pz.noHints ? `איזו תכונה שונה בין ${sub(want).he} ל${sub(bad.problem.impurity!).he}?` : workedExplanation(want, bad.problem.impurity, bad.problem.reason);
     }
-    const headline = bad.problem?.kind === 'impure' && bad.problem.impurity ? `פויה! יש ${sub(bad.problem.impurity).he} ב${n.wantHe}` : bad.problem?.kind === 'missing' ? `זה לא ${n.wantHe}!` : `${n.he} נשאר בלי ${n.wantHe}`;
-    const others = res.customers.filter((c) => !c.happy).length - 1;
-    logEvent({ level: this.pz.id, action: 'fail', values: { customer: bad.id, problem: bad.problem }, hintsUsed: this.hintsUsed, run: this.failedRuns });
+    logEvent({ level: this.pz.id, action: 'fail', values: { customers: unhappy.map((c) => ({ id: c.id, problem: c.problem })), root: root?.[1] }, hintsUsed: this.hintsUsed, run: this.failedRuns });
     window.setTimeout(
       () =>
-        this.card(`<div class="oops"><h2>כמעט!</h2><div class="headline">${n.he}: ${headline}</div><p>${why}</p>${others > 0 ? `<p class="more">ועוד ${f(others)} ${others === 1 ? 'לקוח לא מרוצה' : 'לקוחות לא מרוצים'}.</p>` : ''}
+        this.card(`<div class="oops"><h2>כמעט!</h2>${cause}<ul class="who">${unhappy.map((c) => `<li>${this.customerLine(c)}</li>`).join('')}</ul><p>${why}</p>
           <div class="row"><button class="btn2 teal" data-retry>נסו שוב ↻</button>${this.pz.noHints ? '' : '<button class="btn2" data-hint>💡 רמז</button>'}</div></div>`, (c) => {
           c.querySelector('[data-retry]')!.addEventListener('click', () => {
             this.closeCard();
@@ -1248,7 +1341,6 @@ export class PuzzleGame {
     hand.style.setProperty('--x1', `${to.x}px`);
     hand.style.setProperty('--y1', `${to.y}px`);
     this.ui.append(hand);
-    this.say('גררו את התוף המגנטי לשקע הזוהר.', 5);
     window.setTimeout(() => {
       hand.remove();
       if (!Object.keys(this.placements).length && this.screen === 'level' && this.pz.tutorial) this.tutorialHand();
@@ -1345,7 +1437,7 @@ export class PuzzleGame {
       minZ = Math.min(minZ, p.z);
       maxZ = Math.max(maxZ, p.z);
     }
-    this.frameCamera(minX - 2.6, maxX + 2.8, minZ - 2.2, maxZ + 2.2);
+    this.frameCamera(minX - 2.1, maxX + 2.3, minZ - 1.8, maxZ + 1.8);
   }
 
   project(p: THREE.Vector3): { x: number; y: number; vis: boolean } {
@@ -1474,9 +1566,10 @@ export class PuzzleGame {
       // sockets breathe; machines pop, flip, wobble
       for (const sv of this.socketViews.values()) {
         const boost = sv.ring.userData.boost ? 1 : 0;
-        const pulse = 1 + Math.sin(t * (boost ? 9 : 3)) * (boost ? 0.09 : 0.04);
+        const pulse = sv.ring.userData.snap ? 1.3 : 1 + Math.sin(t * (boost ? 9 : 3)) * (boost ? 0.09 : 0.04);
         sv.ring.scale.setScalar(sv.machine ? 1.05 : pulse);
-        (sv.ring.material as THREE.MeshBasicMaterial).opacity = sv.machine ? 0.25 : sv.ring.userData.dim ? 0.3 : 0.85;
+        (sv.ring.material as THREE.MeshBasicMaterial).opacity = sv.ring.userData.bad ? 0.95 : sv.machine ? 0.25 : sv.ring.userData.dim ? 0.3 : 0.85;
+        if (sv.ring.userData.bad) (sv.ring.material as THREE.MeshBasicMaterial).color.set('#ff5a3c');
         sv.plus.position.y = 0.33 + Math.sin(t * 3) * 0.04;
         if (sv.machine) {
           const m = sv.machine;
@@ -1485,11 +1578,9 @@ export class PuzzleGame {
             m.scale.setScalar(m.userData.base * easeOutBack(s));
             if (s >= 1) m.userData.grow = 0;
           }
-          if (sv.spin > 0) {
-            sv.spin = Math.max(0, sv.spin - dt * 2.5);
-            m.rotation.y = (1 - sv.spin) * Math.PI * 2;
-            if (sv.spin === 0) m.rotation.y = 0;
-          }
+          const facing = this.placements[sv.node.id]?.flipped ? Math.PI : 0;
+          sv.spin = Math.max(0, sv.spin - dt * 2.8);
+          m.rotation.y = facing - sv.spin * Math.PI;
           if (this.phase === 'run' && this.run && this.run.t >= (this.run.socketStart[sv.node.id] ?? 0)) m.position.y = 0.3 + Math.abs(Math.sin(t * 14)) * 0.04;
           else m.position.y = 0.3;
         }
@@ -1578,6 +1669,19 @@ export class PuzzleGame {
       const v = this.nodeViews.get(id);
       if (!v) continue;
       const portrait = window.innerWidth / Math.max(1, window.innerHeight) < 0.9;
+      if (portrait && v.node.kind === 'customer') {
+        // phones: order cards sit in a row under the HUD, in the same left-to-right order as the buildings
+        const custs = [...this.nodeViews.values()].filter((x) => x.node.kind === 'customer');
+        const xs = custs.map((x) => ({ id: x.node.id, x: this.project(x.group.position).x })).sort((a, b) => a.x - b.x);
+        const i = xs.findIndex((o) => o.id === id);
+        const slot = window.innerWidth / xs.length;
+        lab.classList.add('strip');
+        lab.classList.remove('above');
+        lab.style.left = `${slot * (i + 0.5)}px`;
+        lab.style.top = `${document.getElementById('goal')?.getBoundingClientRect().bottom ?? 140}px`;
+        continue;
+      }
+      lab.classList.remove('strip');
       let pos: THREE.Vector3;
       if (v.node.kind === 'customer') pos = v.group.position.clone().add(portrait ? new THREE.Vector3(0, 3.0, 0) : new THREE.Vector3(-1.9, 1.6, 0));
       else pos = v.group.position.clone().add(new THREE.Vector3(0, v.labelY, 0));

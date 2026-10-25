@@ -12,6 +12,15 @@
 - Independent science reviewer/playtester (Agent) reported 2 errors, 9 risks, term nits and 4 UI bugs (`docs/REVIEW_NOTES.md`). Fixed: purity judged without the carrier (week 5 needs chromatography), FeS → ברזל גופרי, wet magnet catches half the iron (week 4 order now matters, per Workbook separation-lab), distilled-water reservoir instead of a "pure" spring, 99 % drinking water, compound note on machines, chromatography solvent sharing, Workbook terms (משקע, נוזל מסונן, נוזל מזוקק, מעבה, אדים, פיגמנט, אתנול), tap-a-source no longer arms a pipe, R on result screen, mobile lens overlap. 74 tests.
 - Re-ran the full campaign, review captures and failure scenario after the fixes.
 
+## 2026-10-25 (later) — v2 redesign
+
+- The user played v1: "barely understood what to do… weird… boring… too hard because of the flow/controls". Replanned (docs/REDESIGN.md); the user chose **Pipe Puzzles**.
+- Tripo round 2 (8 models: tank, funnel, chromatography tower, sieve, mine, reservoir, foundry, bakery; engineer idle + frustrated at 0 credits; 240 credits). ChatGPT v2 mockups (5) in docs/visual-targets/v2.
+- New pure puzzle engine (src/puzzle) with a brute-force solver test; 14 puzzles in 6 chapters (3 no-hint transfer).
+- New 3D front-end (src/v2): floating islands, glass pipes, sockets, drag-and-drop with snapping, flip, thermometer, flow show, customer reactions, scan magnifier, results, level map, phone layout. v1 shell removed.
+- Independent fresh-eyes playtest (docs/V2_REVIEW.md) → fixes listed there (drag feedback, teaching flips, phone layout, root-cause failure card, goal banner, harder levels, shorter show, Hebrew).
+- Verified: 102 tests; all 14 puzzles solved through the UI; phone layout; M2 Max frame cost 5.0 ms median.
+
 ## Next (not in this slice)
 
 - Persistent growing valley across weeks; splitters / throughput upgrades.
