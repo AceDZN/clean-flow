@@ -84,3 +84,73 @@ Common orientation (from `gltf-transform inspect`): **Y-up**, model sits on **y 
 - Model generations: 6 of 6 (magnet drum, filter, still, evap pan, house, engineer). No re-rolls.
 - Rig/animation jobs: 2 of 2 (Humanoid/Mixamo rig 20 credits; `cheer` preset retarget, 0 credits shown)
 - Credits as displayed per task: 0 + 20 (drum) + 0 + 20 (filter) + 30 (still) + 30 (pan) + 30 (house) + 30 (engineer) + 20 (rig) + 0 (cheer) = **180 credits** for this game. Account balance 645 at start → 275 after my last job (the difference beyond 180 was spent by other crews on the shared account).
+
+## Round 2 — Tripo models (2026-10-25, ~14:25–14:38)
+
+Same pipeline as round 1: Tripo Studio text-to-3D, **HD Model, H3.1 – Best Quality, Texture on, 2K texture, PBR on, Ultra Mesh off, Triangle, 20,000 polycount**; export GLB, texture resolution 1k. Every prompt starts with "Stylized-realistic game asset for an indie strategy game:" and ends with "...high detail, clean readable silhouette (from above), single object centered, no ground plane, no base slab." (full text below). Generated in my own tab; account is shared with other crews.
+
+Credits: balance **9075** before the round → **8395** after my last job. The account was shared with other crews generating at the same time (the asset list showed 6–8 foreign jobs running), so the drop is not all mine. Mine as displayed on the buttons: 8 × 30 = **240 credits**; 1 "Free Retry" (sieve, 0); engineer `idle` + `frustrated_01` presets 0 (balance unchanged 8395 → 8395). Exports showed no cost.
+
+Common orientation (from `gltf-transform inspect`): Y-up, base on y = 0, centred on X/Z, longest dimension normalised to 1.0. Front assumed **+Z** (Tripo's default front view, as in round 1) — rotate in-engine if an opening ends up on the wrong side. All have one mesh, one material, PBR baseColor + normal + metallicRoughness (1024² JPEG), no animations, OPAQUE (glass is baked into the texture, not transparent). Originals kept in `~/Downloads/clean-flow-originals/cf2-*.glb`; game copies are byte-identical (no processing needed: all ≤ 1.23 MB) except `engineer-anim.glb`.
+
+| File | Size (B) | Tris | bbox min → max | sha256 |
+|---|---|---|---|---|
+| tank.glb | 1,177,736 | 19,668 | (-0.500, 0, -0.412) → (0.500, 1.000, 0.412) | e1f6471be3ecb320f7929bb96d9d4c115c3761563eb1a1184c9422e3bc3561ee |
+| funnel.glb | 1,018,440 | 19,764 | (-0.259, 0, -0.259) → (0.259, 1.000, 0.259) | 09867a669489b63a7c30ce965c6feed537aaa396c41c11a8a3efced8b62a9149 |
+| chroma-tower.glb | 1,206,284 | 16,260 | (-0.219, 0, -0.220) → (0.219, 1.000, 0.220) | 069b70eb0db0556d6d004da4ea58a988352aa5468f513543674b7ad77d69a42c |
+| mine.glb | 1,134,180 | 19,515 | (-0.470, 0, -0.500) → (0.470, 0.501, 0.500) | cd75a80c341d7e33c0e7e1d1088484aa81ac72a2a878f8ca2df16691de541a0c |
+| reservoir.glb | 1,220,248 | 19,802 | (-0.447, 0, -0.500) → (0.447, 0.675, 0.500) | 2fa62414711ec06cd4c058fa5e1bc2c75f4c2f3943242312401a74650050a378 |
+| foundry.glb | 592,628 | 4,688 | (-0.500, 0, -0.466) → (0.500, 0.863, 0.466) | 89a1feae0a93e01a191d88eb859fcebaa375286a41acec472986492b2e65499d |
+| bakery.glb | 683,628 | 4,554 | (-0.500, 0, -0.469) → (0.500, 0.712, 0.469) | 82625133dad0fe2fc441ef9cdf8adf34b909908ca758a7407a8a559802b40b08 |
+| sieve.glb | 1,030,172 | 4,479 | (-0.331, 0, -0.377) → (0.331, 1.000, 0.377) | abe3b80a10d9a4f3236513e462f1c58e60145db9ea87630c081561d51e3c0eca |
+| engineer-anim.glb | 1,576,956 | 19,422 (skinned) | (-0.500, 0, -0.166) → (0.500, 1.000, 0.166) | af32112c44f12bcab79e1460a86d8650b8cede3fd224d4596f6d29552f644651 |
+
+### 7. tank.glb (dissolving tank)
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a squat copper dissolving tank. Short wide cylindrical hammered-copper vat with three riveted brass bands, topped by a clear glass dome lid showing blue water inside. A chunky brass electric stirring motor sits on top of the dome with a vertical brass paddle shaft going down into the water. Small brass pipe fittings and a valve stub on the left and right sides. Short brass feet. Warm polished brass and copper, clean glass, high detail, clean readable silhouette from above, single object centered, no ground plane, no base slab."
+- Task: https://studio.tripo3d.ai/workspace/generate/0538293f-df6d-4804-8fe7-7781cdf81a94 — credits shown 30
+- Look: hammered copper vat, two riveted brass bands, frosted-glass dome, brass motor cap + shaft (with an odd flat brass paddle visible through the dome), brass tap stubs on ±X, three short feet. Water is not visibly blue (dome reads as frosted white). Strong, polished.
+
+### 8. funnel.glb (separating funnel)
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a laboratory separating funnel station. A tall pear-shaped clear glass separating funnel containing two clearly visible liquid layers, amber-gold oil on top and blue water below, with a brass stopcock tap at the narrow bottom spout. The funnel is held by a brass ring clamp on a heavy polished brass lab stand with a vertical rod and a thick round brass base. Warm polished brass, clean transparent glass, high detail, clean readable silhouette from above, single object centered, no ground plane, no extra base slab."
+- Task: https://studio.tripo3d.ai/workspace/generate/a63edd85-7889-42c5-be3f-e1914d1c7133 — credits shown 30
+- Look: conical glass funnel, thin amber band over a big bright-blue layer, brass ring clamp, rod on one side, brass stopcock, round brass base. Very readable.
+
+### 9. chroma-tower.glb (chromatography tower)
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a chromatography tower. A tall slim rectangular glass display cabinet with a polished brass frame and corner posts. Inside, several long white paper strips hang from a brass rail, each strip showing bright horizontal ink bands in yellow, blue and green. A shallow brass solvent tray with clear liquid at the bottom inside the cabinet. A pointed copper roof cap with a small finial on top. Warm polished brass and copper, clean transparent glass, high detail, clean readable silhouette, single object centered, no ground plane, no base slab."
+- Task: https://studio.tripo3d.ai/workspace/generate/1d78d72a-1c23-4bbc-8304-88e251058c11 — credits shown 30
+- Look: brass-framed glass cabinet, two paper strips with yellow/blue/green blocks, brass tray at the bottom, copper pagoda roof + finial. Glass baked as pale panels. Good.
+
+### 10. mine.glb
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a desert mine entrance. A compact rocky orange sandstone outcrop with layered strata, with a dark tunnel mouth framed by thick wooden timber beams in its front face. An old oil lantern hangs from the top beam. In front of the tunnel, a short section of rail track with a small riveted iron ore cart filled with chunky dark grey iron ore rocks. Warm desert sandstone, weathered wood, dark iron, high detail, clean readable silhouette from above, single compact object centered, no large ground plane."
+- Task: https://studio.tripo3d.ai/workspace/generate/e930b512-229a-42c0-a946-476230540ee2 — credits shown 30
+- Look: rounded orange sandstone boulders, timber portal with lantern, ore cart on a short track, small pale sand apron in front (+Z). Slightly soft/clay-like rock, but reads well. Low (0.5 tall) — scale up.
+
+### 11. reservoir.glb
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a distilled water reservoir. A round open cistern with thick warm sandstone block walls and polished brass bands, filled to the top with clear bright blue water, with a small brass water tower tank on short brass legs beside it. A brass spout pipe sticking out of the front wall with a red-and-brass valve wheel on it. Warm sandstone, polished brass, clean blue water, high detail, clean readable silhouette from above, single object centered, no ground plane, no base slab."
+- Task: https://studio.tripo3d.ai/workspace/generate/8d76decd-9c0e-47d3-9a7d-c54777930b55 — credits shown 30
+- Look: round sandstone-block cistern, two brass bands, blue water surface visible from above, small brass tank on legs with a red valve wheel, brass spout. Good; stone is pale pink-tan.
+
+### 12. foundry.glb
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a small desert foundry building. A one-storey workshop of warm sandstone blocks and red brick, flat roof, a tall square red brick chimney rising from the back corner, a big arched furnace opening in the front wall glowing bright orange with molten heat, an iron anvil on a wooden stump and a few iron ingots stacked out front. Warm sandstone, red brick, dark iron, glowing orange fire, high detail, clean readable silhouette from above, single building centered, no ground plane, no people."
+- Task: https://studio.tripo3d.ai/workspace/generate/93e9263a-5526-419a-8be8-0ac9cae9dea1 — credits shown 30
+- Look: chunky yellow sandstone block with a brick-arch furnace glowing orange (painted, no emissive map), red brick chimney, logs/stump props at the base. Tripo produced only 4.7k tris — more cartoony/soft than the machines.
+
+### 13. bakery.glb
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a small Middle-Eastern village bakery. A one-storey building of warm cream sandstone blocks with a flat roof and low parapet, a wide open shop front with a red-and-white striped canvas awning, a wooden shelf in the window holding round golden pita breads and loaves, and a dome-shaped clay taboon bread oven attached to the side of the building with a small glowing opening. Warm sandstone, terracotta clay, red-white stripes, golden bread, high detail, clean readable silhouette from above, single building centered, no ground plane, no people."
+- Task: https://studio.tripo3d.ai/workspace/generate/ac23e5de-9aa2-44c9-90ef-280c478a21c1 — credits shown 30
+- Look: cream sandstone box with a big open front, red/white scalloped awning, shelf of golden breads, terracotta pot, small clay oven bump on one side, flat roof with parapet. 4.6k tris, soft/toy-like — the weakest of the round.
+
+### 14. sieve.glb
+- Prompt: "Stylized-realistic game asset for an indie strategy game: a sieve shaker machine. A sturdy wooden table frame with brass corner brackets and four short legs, holding a square brass-rimmed wire-mesh sieve tray filled with small grey and tan pebbles on top, mounted on brass springs. A small brass motor with a crank on one side to vibrate the tray. A shallow wooden collection tray with fine golden sand sits on a shelf underneath the sieve. Warm wood, polished brass, high detail, clean readable silhouette from above, single object centered, no ground plane, no base slab."
+- Task: https://studio.tripo3d.ai/workspace/generate/742549b2-041e-4774-80e8-1bfe02a5efb5 — credits shown 30; the first result was broken faceted geometry, so I used the task's **Free Retry** (0 credits; the first version stays in the task's model history). The exported file is the retry.
+- Look: wooden table base, brass upper frame with a square brass tray full of grey/tan pebbles (reads well from above), brass coil spring and gear/motor wheel on one side, small shelf between the tiers. Tall (1.0) and narrow; 4.5k tris.
+
+### 15. engineer-anim.glb (engineer + 3 clips)
+- Same task as round-1 engineer (https://studio.tripo3d.ai/workspace/animate/b70ff135-e338-4a9e-8451-29305fa1c45d), same rig — no new rig. Animate tab → Preset `idle` and `frustrated_01` (each click starts a retarget job; 0 credits, balance unchanged).
+- Export: GLB, 1k textures, Export Skeleton on, Number of Animations 3 (idle, frustrated_01, cheer), Animation stay in Place on → 2,029,220 B (sha256 01e0b28be39bd6533157fdfaf2fa851fba14f282fe5065a5e8666dbae78bcecf, original kept as `cf2-engineer-anim.glb`).
+- Processing (> 1.6 MB): `gltf-transform resize --width 1024 --height 1024` (2.03 → 1.73 MB, JPEGs re-encoded) then `gltf-transform webp` → **1,576,956 B**. Now requires `EXT_texture_webp` (three.js GLTFLoader supports it without extra decoders). No meshopt/draco.
+- Result: 19,422 tris, skinned, 65 `mixamorig:*` joints, root `Armature`, faces +Z, T-pose bind. **Clips: `idle` (15 s), `frustrated_01` (4 s, shoulders slump + head hang), `cheer` (12 s)**, 195 channels each.
+
+### Round 2 budget
+- Model generations: 8 of 8 paid (30 each = 240) + 1 free retry (sieve). Rig/anim: 0 new rigs, 2 preset retargets at 0.
+- Not done: no image-to-3D, no re-rolls of foundry/bakery (they are acceptable but softer; each task still has Free Retry ×3 if the lead wants another roll at 0 credits).
