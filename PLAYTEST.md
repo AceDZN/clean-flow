@@ -20,10 +20,29 @@ All browser checks below ran in **headless Chromium (Playwright, SwiftShader Web
 ## Not verified (honest limits)
 
 - **Fun and learning.** Automation cannot show that the game is fun or that students learn; that needs real players.
-- **Frame rate on a real GPU.** Not measured. The built-in browser pane was hidden during this session (background tabs are throttled) and headless SwiftShader is a software renderer, so neither gives a meaningful FPS number. `window.cf.fps()` reports the live frame rate in a real browser.
 - **Sound.** The WebAudio sounds were not listened to; they are synthesized and only start after the first user gesture.
 - **Real touch devices.** Only emulated touch in Playwright.
 - **Vercel deployment.** Not deployed (per brief); `vercel.json` + static build are ready.
+
+## Performance on a real GPU (measured 2026-10-25, after the laptop restart)
+
+Machine: Apple M2 Max, Chromium in the Claude desktop browser pane (ANGLE → Metal), window 1024×768 at DPR 2 → canvas 2048×1536.
+
+- **Title screen, live:** 119.9 FPS from `cf.fps()` (the display's 120 Hz vsync cap), measured while the pane's animation loop was running.
+- **Frame cost while playing:** for each week, the intended network was built through the game's own pointer handlers (DOM `PointerEvent`s dispatched in the page, not OS-level mouse input), and the valves were opened. 120 frames were then rendered back-to-back with `advanceTime(16.7 ms)`, forcing a GPU sync after each one (`readPixels`). The time includes sim + scene update + render + GPU finish.
+
+| Week | median ms/frame | p95 | max |
+|---|---|---|---|
+| 1 · Iron | 4.1 | 5.0 | 9.9 |
+| 2 · Salt | 4.1 | 5.6 | 9.7 |
+| 3 · Oil | 4.3 | 5.7 | 7.6 |
+| 4 · Classic | 4.3 | 5.6 | 7.3 |
+| 5 · Ink | 4.1 | 5.2 | 8.2 |
+| 6 · Flood Day (11 pipes, 4 sources) | 5.1 | 6.1 | 10.5 |
+
+That is under the 8.3 ms budget for 120 Hz at p95 in every week (and far under 16.7 ms for 60 Hz). All six weeks were won in this run. The first title frame took 174 ms (shader compile). Caveat: the pane was reported hidden for most of the session, which pauses the live animation loop, so these are per-frame costs rather than a long live-FPS recording. Phones and integrated GPUs were not measured.
+
+Found and fixed during this pass: at 4:3 the camera framing left bottom-row nodes under the tray (Flood Day's powder store and fertilizer plant; week 1's mine and builder), and the transfer-week reveal pan pushed the powder store off screen. The camera now searches for the closest distance at which every node's outlet and label fit between the top bar and the tray, and a reveal returns to that view.
 
 ## Independent review
 

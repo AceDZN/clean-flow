@@ -15,7 +15,9 @@ fs.mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 
-async function open(viewport = { width: 1600, height: 900 }, opts = {}) {
+const SIZE = args.includes('--size') ? args[args.indexOf('--size') + 1].split('x').map(Number) : [1600, 900];
+
+async function open(viewport = { width: SIZE[0], height: SIZE[1] }, opts = {}) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1, ...opts });
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());

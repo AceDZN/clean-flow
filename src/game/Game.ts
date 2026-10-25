@@ -1448,9 +1448,9 @@ export class Game {
           }
           const first = w.nodes.get(e.nodes[0]);
           if (first && !this.reduced) {
-            const home = this.homePose();
+            // the home framing already includes the revealed nodes: show the whole valley again
             this.preDive = null;
-            this.flyTo(home.target.clone().lerp(this.nodePos(first), 0.25), home.dist, 0.9);
+            this.cameraHome(false, 0.9);
           }
           this.modal(`<h2>📣 חדש בעמק!</h2><p>${e.he}</p><p style="font-size:14px">הזמן נעצר. בנו את מה שצריך ולחצו המשך.</p><div class="actions"><button class="btn" data-x>הבנתי — לבנות</button></div>`, (m) => m.querySelector('[data-x]')!.addEventListener('click', () => this.closeModal()));
           break;
@@ -1592,13 +1592,48 @@ export class Game {
   // ======================= camera =======================
 
   homePose(): { dist: number; target: THREE.Vector3 } {
-    const aspect = this.canvas.clientWidth / Math.max(1, this.canvas.clientHeight);
-    // frame every node of the week (hidden ones too, so a reveal stays on screen)
-    const pts = [...this.world.nodes.values()].map((n) => this.nodePos(n));
+    // frame every node of the week (hidden ones too, so a reveal stays on screen): find the
+    // closest distance at which all of them project inside the area not covered by the HUD
+    // ground-level outlets and the label tops must both be visible
+    const pts = [...this.world.nodes.values()].flatMap((n) => [this.nodePos(n).add(new THREE.Vector3(0, 0, 0.9)), this.nodePos(n).add(new THREE.Vector3(0, 2.4, 0))]);
     const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, pts.length));
-    const ext = Math.max(...pts.map((p) => Math.hypot(p.x - c.x, (p.z - c.z) * 1.25)), 6);
-    const k = aspect < 0.8 ? 4.7 : aspect < 1.2 ? 2.55 : aspect < 1.6 ? 2.2 : 2.0;
-    return { dist: Math.max(18, ext * k + 4), target: new THREE.Vector3(c.x, 0, c.z + (aspect < 0.8 ? -2.5 : 1.4)) };
+    const target = new THREE.Vector3(c.x, 0, c.z);
+    const cam = this.camera.clone();
+    cam.aspect = this.camera.aspect;
+    cam.fov = this.camera.fov;
+    cam.updateProjectionMatrix();
+    const h = Math.max(1, this.canvas.clientHeight);
+    const trayTop = (document.getElementById('tray')?.getBoundingClientRect().top ?? h - 120) || h - 120;
+    const yMin = -1 + (2 * (h - trayTop)) / h + 0.06; // above the tray
+    const yMax = 1 - (2 * 70) / h; // below the top bar
+    const fits = (d: number, off: number) => {
+      const t = target.clone().add(new THREE.Vector3(0, 0, off));
+      cam.position.copy(t).add(new THREE.Vector3(0, d * 0.74, d * 0.68));
+      cam.lookAt(t);
+      cam.updateMatrixWorld(true);
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const p of pts) {
+        const v = p.clone().project(cam);
+        if (Math.abs(v.x) > (cam.aspect < 0.8 ? 0.8 : 0.93)) return { ok: false, lo: 0, hi: 0 };
+        lo = Math.min(lo, v.y);
+        hi = Math.max(hi, v.y);
+      }
+      return { ok: lo >= yMin && hi <= yMax, lo, hi };
+    };
+    for (let d = 16; d <= 70; d += 0.5) {
+      // slide the target along z so the nodes sit centred in the free band
+      let off = 0;
+      for (let k = 0; k < 6; k++) {
+        const r = fits(d, off);
+        if (r.ok) return { dist: d, target: target.clone().add(new THREE.Vector3(0, 0, off)) };
+        if (!Number.isFinite(r.lo) || r.hi === r.lo) break;
+        const mid = (r.lo + r.hi) / 2;
+        const want = (yMin + yMax) / 2;
+        off += (want - mid) * d * 0.35;
+      }
+    }
+    return { dist: 60, target };
   }
 
   cameraHome(instant = false, dur = 0.8): void {
@@ -1931,6 +1966,7 @@ export class Game {
         return p ? g.project(p.curve.getPointAt(0.5)) : null;
       },
       fps: () => g.fpsAcc.fps,
+      camera: () => ({ pos: g.camera.position.toArray().map((v) => +v.toFixed(2)), target: g.controls.target.toArray().map((v) => +v.toFixed(2)), home: (() => { const h = g.homePose(); return { dist: h.dist, target: h.target.toArray() }; })(), fov: g.camera.fov, aspect: +g.camera.aspect.toFixed(3) }),
       pickAt: (x: number, y: number) => {
         g.setPointer(x, y);
         return { hit: g.pick(), hex: g.pickHex() };
