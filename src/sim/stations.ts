@@ -1,6 +1,11 @@
 // Separation stations as pure functions on packets. Mass is conserved:
 // the sum of every output (including vapor) equals the input.
 import { EPS, add, clean, dissolvedMass, hasLiquid, immiscibleLiquids, mass, total, undissolvedSolidMass, units, type Comp } from './mixture';
+
+/** Share of iron a magnet still catches when the filings are wet and sunk in a slurry. Workbook
+ * (separation-lab): wet iron sinks under the water and is very hard to collect with a magnet,
+ * so the iron always comes out first. */
+export const WET_MAGNET_CATCH = 0.5;
 import { isVolatile, sub, type UnitId } from './substances';
 
 export type StationType = 'magnet' | 'filter' | 'sieve' | 'funnel' | 'tank' | 'pan' | 'still' | 'chroma';
@@ -29,11 +34,11 @@ export const STATIONS: Record<StationType, StationDef> = {
     type: 'magnet', he: 'תוף מגנטי', heShort: 'מגנט', propertyHe: 'מגנטיות',
     outputs: [{ id: 'magnetic', he: 'נמשך למגנט' }, { id: 'rest', he: 'השאר' }],
     procTime: 1.2, multiInput: false,
-    blurb: 'מושך חלקיקים מגנטיים (ברזל) לצינור אחד, כל השאר ממשיך.',
+    blurb: 'מושך חלקיקים מגנטיים (ברזל) לצינור אחד, כל השאר ממשיך. ברזל רטוב שוקע בבוץ — המגנט תופס רק חלק ממנו.',
   },
   filter: {
     type: 'filter', he: 'מסנן', heShort: 'מסנן', propertyHe: 'גודל חלקיקים',
-    outputs: [{ id: 'filtrate', he: 'תסנין' }, { id: 'residue', he: 'שארית' }],
+    outputs: [{ id: 'filtrate', he: 'נוזל מסונן' }, { id: 'residue', he: 'משקע' }],
     procTime: 1.2, multiInput: false,
     blurb: 'נוזל וכל מה שמומס בו עוברים דרך הנייר. מוצק שלא נמס נשאר על הנייר.',
   },
@@ -59,19 +64,19 @@ export const STATIONS: Record<StationType, StationDef> = {
     type: 'pan', he: 'אגן אידוי', heShort: 'אידוי', propertyHe: 'נקודת רתיחה',
     outputs: [{ id: 'crystals', he: 'גבישים' }],
     procTime: 1.6, multiInput: false,
-    blurb: 'מחמם עד שהנוזל מתאדה ועף כקיטור. כל מה שלא מתאדה נשאר בתחתית.',
+    blurb: 'מחמם עד שהנוזל מתאדה ועף כאדים. כל מה שלא מתאדה נשאר בתחתית.',
   },
   still: {
     type: 'still', he: 'מתקן זיקוק', heShort: 'זיקוק', propertyHe: 'נקודת רתיחה',
-    outputs: [{ id: 'distillate', he: 'תזקיק' }, { id: 'remainder', he: 'נשאר בדוד' }],
+    outputs: [{ id: 'distillate', he: 'נוזל מזוקק' }, { id: 'remainder', he: 'נשאר בדוד' }],
     procTime: 1.6, multiInput: false,
-    blurb: 'מרתיח לטמפרטורה שבחרתם. מה שרותח מתאדה, מתקרר במצנן ונאסף כנוזל.',
+    blurb: 'מרתיח לטמפרטורה שבחרתם. מה שרותח מתאדה, מתקרר במעבה ונאסף כנוזל מזוקק.',
   },
   chroma: {
     type: 'chroma', he: 'מגדל כרומטוגרפיה', heShort: 'כרומטוגרפיה', propertyHe: 'מהירות תנועה',
     outputs: [{ id: 'fast', he: 'פס מהיר' }, { id: 'slow', he: 'פס איטי' }],
     procTime: 1.4, multiInput: false,
-    blurb: 'הממס מטפס על הנייר וגורר כל צבען במהירות אחרת: הצבענים נפרדים לפסים.',
+    blurb: 'הממס מטפס על הנייר וגורר כל פיגמנט במהירות אחרת: הפיגמנטים נפרדים לפסים. (במעבדה זו שיטה לכמויות זעירות — בעמק בנינו מגדל ענק.)',
   },
 };
 
@@ -106,8 +111,10 @@ function split(c: Comp, pred: (u: UnitId, c: Comp) => number): [Comp, Comp] {
 export function runStation(type: StationType, input: Comp, cfg: StationConfig = {}): StationResult {
   switch (type) {
     case 'magnet': {
-      const [magnetic, rest] = split(input, (u, c) => (sub(u).magnetic ? undissolvedSolidMass(c, u) : 0));
-      return { outputs: { magnetic, rest }, vapor: {}, note: total(magnetic) < EPS ? 'nothing-magnetic' : undefined };
+      const wet = hasLiquid(input);
+      const [magnetic, rest] = split(input, (u, c) => (sub(u).magnetic ? undissolvedSolidMass(c, u) * (wet ? WET_MAGNET_CATCH : 1) : 0));
+      const note = total(magnetic) < EPS ? 'nothing-magnetic' : wet ? 'wet-magnet' : undefined;
+      return { outputs: { magnetic, rest }, vapor: {}, note };
     }
     case 'filter': {
       if (!hasLiquid(input)) {
@@ -149,16 +156,26 @@ export function runStation(type: StationType, input: Comp, cfg: StationConfig = 
       if (solvents.length === 0) {
         return { outputs: { fast: {}, slow: clean({ ...input }) }, vapor: {}, note: 'no-solvent' };
       }
-      // dissolved substances travel with their own speed; the solvent is shared between the
-      // two bands; undissolved solids stay at the start line (slow band)
+      // dissolved substances travel with their own speed; undissolved solids stay at the start
+      // line (slow band). The solvent goes with the solutes, shared so each band keeps them dissolved.
       const fast: Comp = {};
       const slow: Comp = {};
+      let needFast = 0;
+      let needSlow = 0;
+      for (const u of units(input)) {
+        const s = sub(u);
+        const d = dissolvedMass(input, u);
+        if (s.phase !== 'solid' || d <= 0) continue;
+        if (s.chromaSpeed >= 0.5) needFast += d / s.solubility;
+        else needSlow += d / s.solubility;
+      }
+      const fastShare = needFast + needSlow > 0 ? needFast / (needFast + needSlow) : 0.5;
       for (const u of units(input)) {
         const m = mass(input, u);
         const s = sub(u);
         if (s.phase === 'liquid') {
-          fast[u] = m / 2;
-          slow[u] = m / 2;
+          fast[u] = m * fastShare;
+          slow[u] = m * (1 - fastShare);
         } else {
           const d = dissolvedMass(input, u);
           if (s.chromaSpeed >= 0.5) fast[u] = d;

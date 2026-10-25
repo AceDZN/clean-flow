@@ -9,9 +9,10 @@
 - Headless playtests with real mouse input (`scripts/playtest.mjs`): all six weeks won through the UI; recoverable mistake (week 1 wrong pipe → rejection → dusk) verified; mobile 390×844 layout checked.
 - Fixed from playtests: status banner blocking clicks, wrong picking between overlapping machines/customers and pipes, camera framing per week, exposure, pipe/particle readability, rejection bubble placement, mobile HUD overlap.
 - Visual review written (`docs/VISUAL_REVIEW.md`) with real captures in `docs/captures/`.
-- Independent science reviewer/playtester (Agent) running; findings will go to `docs/REVIEW_NOTES.md` and be fixed here.
+- Independent science reviewer/playtester (Agent) reported 2 errors, 9 risks, term nits and 4 UI bugs (`docs/REVIEW_NOTES.md`). Fixed: purity judged without the carrier (week 5 needs chromatography), FeS → ברזל גופרי, wet magnet catches half the iron (week 4 order now matters, per Workbook separation-lab), distilled-water reservoir instead of a "pure" spring, 99 % drinking water, compound note on machines, chromatography solvent sharing, Workbook terms (משקע, נוזל מסונן, נוזל מזוקק, מעבה, אדים, פיגמנט, אתנול), tap-a-source no longer arms a pipe, R on result screen, mobile lens overlap. 74 tests.
+- Re-ran the full campaign, review captures and failure scenario after the fixes.
 
-## Next
+## Next (not in this slice)
 
-- Apply the science reviewer's findings.
-- Final pass: PLAYTEST.md, leave the dev server running on 5195.
+- Persistent growing valley across weeks; splitters / throughput upgrades.
+- Teacher check of FeS naming and the wet-magnet number; real-classroom playtests.

@@ -63,6 +63,13 @@ describe('Week 1 · Iron', () => {
     expect(world.state).toBe('failed');
     expect(rejects.some((r) => r.node === 'builder' && r.reason === 'impure:iron')).toBe(true);
   });
+  it('a machine fed a single compound says it cannot be separated physically', () => {
+    const { log } = run('w1-iron', {
+      stations: [{ name: 'M', type: 'magnet', q: -1, r: -2 }],
+      pipes: [['spring', 'out', 'M'], ['M', 'rest', 'village'], ['mine', 'out', 'builder']],
+    });
+    expect(log.some((e) => e.type === 'processed' && e.note === 'pure-compound')).toBe(true);
+  });
   it('wasting the magnet on the spring leaves no way to split the mine', () => {
     const L = LEVELS[0];
     const w = new World(L);
@@ -173,6 +180,19 @@ describe('Week 4 · the classic order (magnet → dissolve → filter → evapor
     expect(world.state).toBe('failed');
     expect(rejects.some((r) => r.node === 'builder' && r.reason === 'impure:salt')).toBe(true);
   });
+  it('dissolving before the magnet: wet iron is only partly caught and ends up in the sand', () => {
+    const { rejects, world } = run('w4-classic', {
+      stations: [
+        { name: 'T', type: 'tank', q: -3, r: 1 },
+        { name: 'M', type: 'magnet', q: -1, r: -1 },
+        { name: 'F', type: 'filter', q: 2, r: -1 },
+        { name: 'P', type: 'pan', q: 2, r: 1 },
+      ],
+      pipes: [['mine', 'out', 'T'], ['spring', 'out', 'T'], ['T', 'out', 'M'], ['M', 'magnetic', 'foundry'], ['M', 'rest', 'F'], ['F', 'residue', 'builder'], ['F', 'filtrate', 'P'], ['P', 'crystals', 'bakery']],
+    });
+    expect(world.state).toBe('failed');
+    expect(rejects.some((r) => r.node === 'builder' && r.reason === 'impure:iron')).toBe(true);
+  });
   it('a physically valid variant (magnet on the filter residue) also works — order rules come from physics, not a script', () => {
     const { world, rejects } = run('w4-classic', {
       stations: [
@@ -195,6 +215,14 @@ describe('Week 5 · Ink & Spirits', () => {
     const { rejects, world } = run('w5-ink', plan);
     expect(world.state).toBe('failed');
     expect(rejects.some((r) => r.node === 'perfume' && r.reason === 'impure:water')).toBe(true);
+  });
+  it('piping raw ink to the print shop is rejected (needs chromatography)', () => {
+    const { rejects, world } = run('w5-ink', {
+      stations: [{ name: 'S', type: 'still', q: 1, r: 3, temp: 78 }],
+      pipes: [['ink', 'out', 'print'], ['ferment', 'out', 'S'], ['S', 'distillate', 'perfume'], ['S', 'remainder', 'village']],
+    });
+    expect(world.state).toBe('failed');
+    expect(rejects.some((r) => r.node === 'print' && r.reason === 'impure:pigmentYellow')).toBe(true);
   });
   it('evaporating the ink leaves both pigments together', () => {
     const { rejects } = run('w5-ink', {

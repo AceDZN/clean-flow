@@ -88,6 +88,8 @@ export interface LensPanelOpts {
   onTag?: (c: MatterClass) => void;
   onClose: () => void;
   extra?: string;
+  /** before the player stamps a source, the panel shows the particles but not the verdict */
+  hideDistribution?: boolean;
 }
 
 export function lensPanel(o: LensPanelOpts): HTMLElement {
@@ -96,7 +98,7 @@ export function lensPanel(o: LensPanelOpts): HTMLElement {
     <div class="sec"><header><div><h3>עדשת חלקיקים · ${o.title}</h3><div class="kind">${o.kindHe}</div></div>
       <button class="iconbtn" data-close aria-label="סגירת העדשה" style="width:36px;height:36px;font-size:16px">✕</button></header></div>
     <div class="view-wrap"><div id="lens-view" role="img" aria-label="חלקיקים בזרם: ${units(o.comp).map((u) => sub(u).he).join(', ')}"></div></div>
-    <div class="sec"><div class="legend">${legendHtml(o.comp)}</div><div class="dist">${distributionHe(o.comp)}</div>${o.extra ?? ''}</div>
+    <div class="sec"><div class="legend">${legendHtml(o.comp)}</div><div class="dist">${o.hideDistribution ? 'כמה סוגי חלקיקים? מפוזרים באחידות או בגושים? הסתכלו בעדשה.' : distributionHe(o.comp)}</div>${o.extra ?? ''}</div>
     ${o.taggable ? `<div class="sec"><div style="font-size:13px;font-weight:700;margin-bottom:4px">החתימו את הזרם:</div><div class="stamps">${(['element', 'compound', 'homogeneous', 'heterogeneous'] as MatterClass[])
       .map((c) => `<button class="stamp ${o.tagged === c ? 'right' : ''}" data-tag="${c}">${CLASS_ICON[c]}${CLASS_HE[c]}</button>`)
       .join('')}</div><div class="stamp-note" aria-live="polite">${o.tagged ? '✓ ' + CLASS_HE[o.tagged] : ''}</div></div>` : ''}
@@ -106,14 +108,16 @@ export function lensPanel(o: LensPanelOpts): HTMLElement {
   return p;
 }
 
-export function stampFeedback(panel: HTMLElement, cls: MatterClass, correct: boolean, comp: Comp): void {
+export function stampFeedback(panel: HTMLElement, cls: MatterClass, correct: boolean, comp: Comp, bonus = true): void {
   const b = panel.querySelector<HTMLButtonElement>(`[data-tag="${cls}"]`);
   const note = panel.querySelector('.stamp-note')!;
   panel.querySelectorAll('.stamp').forEach((x) => x.classList.remove('wrong'));
   if (correct) {
     panel.querySelectorAll('.stamp').forEach((x) => x.classList.remove('right'));
     b?.classList.add('right');
-    note.innerHTML = `✓ ${CLASS_HE[cls]}! <b>+⭐</b>`;
+    note.innerHTML = `✓ ${CLASS_HE[cls]}!${bonus ? ' <b>+⭐</b>' : ''}`;
+    const dist = panel.querySelector('.dist');
+    if (dist) dist.textContent = distributionHe(comp);
   } else {
     b?.classList.add('wrong');
     const n = units(comp).length;

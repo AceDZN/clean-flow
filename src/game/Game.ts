@@ -54,7 +54,10 @@ const NOTE_HE: Record<string, string> = {
   'one-layer': 'יש רק שכבה אחת — אין מה להפריד',
   'nothing-evaporates': 'אין פה נוזל שמתאדה',
   'nothing-boils': 'בטמפרטורה הזו שום דבר לא רותח',
-  'no-solvent': 'אין ממס — הצבענים לא זזים על הנייר',
+  'no-solvent': 'אין ממס — הפיגמנטים לא זזים על הנייר',
+  'wet-magnet': 'הברזל רטוב ושקוע בבוץ — המגנט תופס רק חלק ממנו',
+  'pure-compound': 'זו תרכובת — חומר אחד. שיטות הפרדה פיזיקליות לא מפרקות אותה',
+  'pure-element': 'זה יסוד — חומר אחד. אין כאן מה להפריד',
 };
 
 export class Game {
@@ -711,7 +714,7 @@ export class Game {
       2: ['יש שם שני סוגי מוצקים. גררו את <b>התוף המגנטי</b> מהמגש לטרסה פנויה.', null],
       3: ['גררו צינור מ<b>פיית המכרה</b> (הטבעת הצהובה) אל התוף המגנטי.', () => this.nodeViews.get('mine')!.ports.out.getWorldPosition(new THREE.Vector3())],
       4: ['לתוף שתי יציאות: גררו את <b>"נמשך למגנט"</b> לבית היציקה ואת <b>"השאר"</b> לקבלן.', () => (magnet ? this.nodePos(magnet).add(new THREE.Vector3(0, 0.6, 0)) : null)],
-      5: ['והמעיין? הציצו בו: חומר אחד בלבד. צינור ישר <b>מהמעיין לכפר</b> — בלי מכונה.', () => this.nodeViews.get('spring')!.ports.out.getWorldPosition(new THREE.Vector3())],
+      5: ['ומאגר המים המזוקקים? הציצו בו: חומר אחד בלבד. צינור ישר <b>מהמאגר לכפר</b> — בלי מכונה.', () => this.nodeViews.get('spring')!.ports.out.getWorldPosition(new THREE.Vector3())],
       6: ['הכול מחובר. <b>▶ פתחו את הברזים</b> וצפו בחלקיקים!', null],
     };
     const s = steps[this.tutorialStep];
@@ -882,12 +885,14 @@ export class Game {
           return;
         }
         if (click && !m.armed && hit && hit.id === m.from) {
+          if (hit.kind === 'node') {
+            // tapping a source's body inspects it (a pipe starts from its outlet ring or by dragging)
+            this.setMode({ kind: 'idle' });
+            this.openLens({ kind: 'node', id: m.from });
+            return;
+          }
           // tap on an outlet: arm and wait for a tap on the target
           this.setMode({ ...m, armed: true });
-          if (this.world.nodes.get(m.from)?.kind === 'source' && hit.kind === 'node') {
-            // tapping a source also opens its lens
-            this.openLens({ kind: 'node', id: m.from });
-          }
           return;
         }
         this.setMode({ kind: 'idle' });
@@ -906,6 +911,10 @@ export class Game {
   }
 
   private onKey(e: KeyboardEvent): void {
+    if (this.screen === 'result' && (e.key === 'r' || e.key === 'R')) {
+      this.restartRun();
+      return;
+    }
     if (this.screen !== 'play') return;
     if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
     const k = e.key;
@@ -1261,10 +1270,12 @@ export class Game {
       comp,
       taggable,
       tagged: n?.tag,
+      hideDistribution: taggable && !n?.tag,
       onClose: () => this.closeLens(),
       onTag: (c) => this.tag(n!.id, c, comp),
     });
     this.ui.append(this.lensEl);
+    document.body.classList.add('lens-open');
     audio.play('whoosh');
     this.log('lens', { target: s.id, kind: s.kind });
     // camera dives toward the stream
@@ -1277,11 +1288,13 @@ export class Game {
   }
 
   closeLens(sound = true): void {
+    if (sound && this.mode.kind === 'connect') this.setMode({ kind: 'idle' });
     if (this.preDive && sound) {
       const d = this.preDive;
       this.camTween = { from: this.controls.target.clone(), to: d.target, fromPos: this.camera.position.clone(), toPos: d.pos, t: 0, dur: 0.45 };
       this.preDive = null;
     }
+    document.body.classList.remove('lens-open');
     if (this.lensEl) {
       this.lensEl.remove();
       this.lensEl = null;
@@ -1295,7 +1308,7 @@ export class Game {
     if (n.tag) return;
     const res = this.world.tagNode(id, c);
     this.log('tag', { node: id, tag: c, truth: res.truth, attempt: n.tagAttempts }, res.correct ? 'correct' : 'wrong');
-    if (this.lensEl) stampFeedback(this.lensEl, c, res.correct, comp);
+    if (this.lensEl) stampFeedback(this.lensEl, c, res.correct, comp, n.tagFirstCorrect === true);
     const pos = this.nodePos(n).add(new THREE.Vector3(0, 1.6, 0));
     if (res.correct) {
       audio.play('stamp');
@@ -1498,14 +1511,14 @@ export class Game {
     if (w.failReason?.reason === 'flood') {
       const src = w.nodes.get(w.failReason.node!)!;
       const out = w.pipeFrom(src.id, 'out');
-      if (!out) lines.push(`ל${src.he} לא היה צינור יציאה — הזרם הצטבר עד שהציף.`);
+      if (!out) lines.push(`מהמקור «${src.he}» לא יצא שום צינור — הזרם הצטבר עד שהציף.`);
       else {
         // find the jam downstream
         const stuck = [...w.nodes.values()].find((n) => n.kind === 'station' && Object.entries(n.outBuf).some(([p, b]) => b.length >= 3 && !w.pipeFrom(n.id, p)));
         if (stuck) {
           const port = Object.entries(stuck.outBuf).find(([p, b]) => b.length >= 3 && !w.pipeFrom(stuck.id, p))![0];
-          lines.push(`ב${stuck.he} היציאה "${STATIONS[stuck.station!].outputs.find((o) => o.id === port)!.he}" לא חוברה לשום מקום. המכונה התמלאה, נעצרה, והזרם חזר אחורה עד ש${src.he} הציף. כל רכיב צריך לאן ללכת — גם פסולת.`);
-        } else lines.push(`הזרם מ${src.he} נתקע בדרך והציף. בדקו שכל המכונות בשרשרת מחוברות עד הסוף.`);
+          lines.push(`ב${stuck.he} היציאה "${STATIONS[stuck.station!].outputs.find((o) => o.id === port)!.he}" לא חוברה לשום מקום. המכונה התמלאה, נעצרה, והזרם חזר אחורה עד שהמקור «${src.he}» הציף. כל רכיב צריך לאן ללכת — גם פסולת.`);
+        } else lines.push(`הזרם מהמקור «${src.he}» נתקע בדרך והציף. בדקו שכל המכונות בשרשרת מחוברות עד הסוף.`);
       }
     } else {
       const unmet = [...w.nodes.values()].filter((n) => n.kind === 'customer' && n.delivered < (n.spec?.quota ?? 0));
@@ -1553,7 +1566,7 @@ export class Game {
       <div class="stars">${star(st.done)}${star(st.tags)}${star(st.tidy)}</div>
       <p>⭐ כל הלקוחות קיבלו את ההזמנה · ⭐ כל המקורות הוחתמו נכון בניסיון הראשון · ⭐ אפס דחיות ולא יותר מ-${f(L.par.stations)} מכונות</p>
       <p style="font-size:14px">זמן: ${f(w.t.toFixed(0) + 's')} · מכונות: ${f(w.stationsUsed())} · צנרת: ${f(w.pipeUsed())} · משלוחים שנדחו: ${f(rejected)} · רמזים: ${f(this.hintsUsed)}</p>
-      ${isLast ? '<p>עברתם את יום השיטפון בלי רמזים: סיווגתם זרמים חדשים ובחרתם שיטות לפי התכונות. כל הכבוד, מהנדסי העמק!</p>' : `<h4>שדרוג לשבוע הבא — בחרו אחד:</h4><div class="perks"><button class="perk" data-perk="pipe"><b>+5 צינור</b>עוד מטרים של זכוכית לשבוע הבא.</button><button class="perk" data-perk="overflow"><b>מאגרים גדולים</b>המקורות מחזיקים 50% יותר זמן לפני שיטפון.</button></div>`}
+      ${isLast ? `<p>עברתם את יום השיטפון בלי רמזים: ${st.tags ? 'סיווגתם זרמים חדשים, ' : ''}בחרתם שיטות לפי התכונות של זרמים שלא ראיתם קודם. כל הכבוד, מהנדסי העמק!</p>` : `<h4>שדרוג לשבוע הבא — בחרו אחד:</h4><div class="perks"><button class="perk" data-perk="pipe"><b>+5 צינור</b>עוד מטרים של זכוכית לשבוע הבא.</button><button class="perk" data-perk="overflow"><b>מאגרים גדולים</b>המקורות מחזיקים 50% יותר זמן לפני שיטפון.</button></div>`}
       <div class="actions">${isLast ? '<button class="btn" data-title>למסך הפתיחה</button>' : '<button class="btn" data-next disabled>לשבוע הבא ▶</button>'}<button class="btn secondary" data-replay>לשחק שוב את השבוע</button></div>`, (m) => {
       m.querySelectorAll<HTMLButtonElement>('[data-perk]').forEach((b) =>
         b.addEventListener('click', () => {
@@ -1974,12 +1987,12 @@ export function workedExplanation(want: UnitId, impurity: UnitId | undefined, re
     'water<salt': 'מי מלח נראים צלולים, אבל זו תערובת הומוגנית — מסנן לא עוצר מלח מומס. בזיקוק המים רותחים ומתעבים לחוד.',
     'water<sugar': 'צלול ≠ טהור: יש בו סוכר מומס. אידוי משאיר את הסוכר, וזיקוק נותן מים נקיים.',
     'water<oil': 'השמן והמים נפרדים לשכבות — משפך הפרדה מוציא כל שכבה לחוד.',
-    'sand<iron': 'ברזל וחול הם שני מוצקים — מסנן לא מבדיל ביניהם. ברזל נמשך למגנט, חול לא.',
-    'iron<sand': 'חול וברזל עדיין מעורבבים. התכונה שמבדילה ביניהם: מגנטיות.',
+    'sand<iron': 'ברזל וחול הם שני מוצקים — מסנן לא מבדיל ביניהם. ברזל נמשך למגנט, חול לא. ואם הברזל כבר רטוב ושקוע בבוץ, המגנט תופס רק חלק — לכן מוציאים אותו ראשון, כשהכול יבש.',
+    'iron<sand': 'חול וברזל עדיין מעורבבים. התכונה שמבדילה ביניהם: מגנטיות — ועדיף כשהכול יבש.',
     'sand<salt': 'המלח לא נמס, אז נשאר על הנייר עם החול. חברו צינור מים למיכל ההמסה לפני הסינון.',
     'oil<water': 'שמן ומים שניהם נוזלים — שניהם עוברים במסנן. הם לא מתערבבים: משפך הפרדה.',
-    'ethanol<water': 'ב-100°C גם המים רותחים. כוונו את מתקן הזיקוק ל-78°C — רק הכוהל יתאדה.',
-    'pigmentBlue<pigmentYellow': 'באידוי שני הצבענים נשארים יחד. בכרומטוגרפיה כל צבען זז במהירות אחרת על הנייר.',
+    'ethanol<water': 'ב-100°C גם המים רותחים. כוונו את מתקן הזיקוק ל-78°C — האתנול רותח ראשון.',
+    'pigmentBlue<pigmentYellow': 'באידוי שני הפיגמנטים נשארים יחד. בכרומטוגרפיה כל פיגמנט זז במהירות אחרת על הנייר.',
     'sugar<water': 'הסוכר עדיין מומס במים. אידוי משאיר אותו יבש.',
   };
   return m[key] ?? `יש שם ${impurity ? sub(impurity).he : 'עוד משהו'}. איזו תכונה שונה בין ${sub(want).he} ל${impurity ? sub(impurity).he : 'שאר הרכיבים'}?`;

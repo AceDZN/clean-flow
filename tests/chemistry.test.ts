@@ -138,6 +138,31 @@ describe('customers judge purity', () => {
   });
 });
 
+describe('reviewer fixes', () => {
+  const print = { id: 'p', kind: 'customer' as const, he: '', q: 0, r: 0, required: ['pigmentBlue' as const], allowed: ['water' as const] };
+  it('purity ignores the tolerated carrier: raw green ink is rejected by the print shop, the blue band is accepted', () => {
+    const ink = { pigmentBlue: 0.3, pigmentYellow: 0.3, water: 9.4 };
+    expect(judge(print, ink).accepted).toBe(false);
+    expect(judge(print, runStation('chroma', ink).outputs.slow).accepted).toBe(true);
+  });
+  it('chromatography keeps each band pigment dissolved (solvent follows the solutes)', () => {
+    const r = runStation('chroma', { pigmentBlue: 0.3, pigmentYellow: 0.3, water: 9.4 });
+    expect(isUniform(r.outputs.slow)).toBe(true);
+    expect(isUniform(r.outputs.fast)).toBe(true);
+  });
+  it('a magnet on a wet slurry only catches part of the iron (Workbook: take the iron out first, dry)', () => {
+    const r = runStation('magnet', { iron: 3, sand: 4, salt: 3, water: 10 });
+    expect(r.outputs.magnetic.iron).toBeCloseTo(1.5);
+    expect(r.outputs.rest.iron).toBeCloseTo(1.5);
+    expect(r.note).toBe('wet-magnet');
+    expect(runStation('magnet', { iron: 3, sand: 4 }).outputs.magnetic.iron).toBe(3);
+  });
+  it('drinking water must be 99 % pure: a trace of dye is rejected', () => {
+    const village = { id: 'v', kind: 'customer' as const, he: '', q: 0, r: 0, required: ['water' as const], purity: 0.99 };
+    expect(judge(village, { water: 4.7, pigmentBlue: 0.18 }).accepted).toBe(false);
+  });
+});
+
 describe('substance data sanity', () => {
   it('boiling points used in the game match Workbook (water 100 °C, alcohol 78 °C)', () => {
     expect(SUBSTANCES.water.boilingPoint).toBe(100);

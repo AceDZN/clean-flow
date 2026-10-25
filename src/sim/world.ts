@@ -419,6 +419,9 @@ export class World {
       n.proc.t -= dt;
       if (n.proc.t <= 0) {
         const res = runStation(type, n.proc.packet.comp, n.cfg);
+        // a single substance can't be separated physically — say so (compounds need a chemical reaction)
+        const only = units(n.proc.packet.comp);
+        if (only.length === 1 && type !== 'tank') res.note = classify(n.proc.packet.comp) === 'compound' ? 'pure-compound' : 'pure-element';
         for (const [port, comp] of Object.entries(res.outputs)) {
           if (total(comp) > EPS) n.outBuf[port].push({ id: PACKET_SEQ++, comp });
         }
@@ -434,7 +437,9 @@ export class World {
       const tot = total(n.vat);
       if (tot <= EPS) return;
       const feeds = this.pipesInto(n.id).length;
-      const ready = allSolubleDissolved(n.vat) || feeds < 2 || tot >= TANK_CAP * 0.75;
+      // with two feeds, don't send plain water on alone: wait for the mixture to arrive
+      const onlyWater = units(n.vat).length === 1 && units(n.vat)[0] === 'water';
+      const ready = (allSolubleDissolved(n.vat) && !(onlyWater && feeds >= 2)) || feeds < 2 || tot >= TANK_CAP * 0.75;
       if (!ready) return;
       const take = Math.min(1, TANK_SLICE / tot);
       const slice = scale(n.vat, take);
@@ -552,6 +557,8 @@ export function judge(spec: NodeSpec, comp: Comp): Verdict {
   const req = spec.required ?? [];
   const allowed = spec.allowed ?? [];
   const tot = total(comp);
+  let allowedMass = 0;
+  for (const u of allowed) allowedMass += mass(comp, u);
   let credit = 0;
   for (const u of req) credit += mass(comp, u);
   const missing = req.filter((u) => mass(comp, u) <= EPS);
@@ -571,7 +578,9 @@ export function judge(spec: NodeSpec, comp: Comp): Verdict {
     return { accepted: false, credit: 0, reason: `missing:${missing.join(',')}`, impurity: worst };
   }
   if (missing.length > 0) return { accepted: false, credit: 0, reason: `missing:${missing.join(',')}` };
-  if (tot > EPS && impure / tot > 1 - purity + EPS) return { accepted: false, credit: 0, reason: `impure:${worst}`, impurity: worst };
+  // purity is judged on the product itself, not diluted by the tolerated carrier (water in ink)
+  const base = tot - allowedMass;
+  if (base > EPS && impure / base > 1 - purity + EPS) return { accepted: false, credit: 0, reason: `impure:${worst}`, impurity: worst };
   return { accepted: true, credit, reason: 'ok' };
 }
 

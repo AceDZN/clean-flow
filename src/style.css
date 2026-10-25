@@ -216,6 +216,8 @@ bdi.f, .ltr { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabul
   .bubble { font-size: 14px; padding: 5px 10px; }
   .gauge .dial { width: 38px; height: 23px; }
   #hintbtn span { display: none; }
+  .lens-open #world-labels, .lens-open #status-banner, .lens-open #coach { display: none; }
+  #lens { top: 112px; bottom: auto; width: min(320px, 82vw); }
   #hud-top-right { top: 62px; right: 8px; }
   #status-banner { top: 118px; font-size: 13px; }
   #coach { top: 118px; font-size: 14px; max-width: calc(100vw - 16px); }
